@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pesca Málaga">
+<meta name="theme-color" content="#0b4a78">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Pesca Málaga: juego de pesca por el Mediterráneo vista desde arriba. Pesca desde la orilla, el espigón, la tabla de paddle y bucea con arpón.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>Pesca Málaga</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="joyzone"></div>
+<div id="joy"><div id="joyknob"></div></div>
+
+<div id="hud">
+  <div class="row">
+    <div class="pill" id="hMoney">💶 0 €</div>
+    <div class="pill" id="hClock">☀️ 09:00 · Día 1</div>
+  </div>
+  <div class="row">
+    <div class="pill small" id="hSwell">🌊 Calma</div>
+    <div class="pill small" id="hBait">🪱 10</div>
+    <div class="pill small" id="hCool">🧊 0/3</div>
+  </div>
+  <div id="hSpot" class="spot"></div>
+</div>
+<div id="hudR">
+  <button class="round mini" id="btnMap" aria-label="Mapa">🗺️</button>
+  <button class="round mini" id="btnMenu" aria-label="Ajustes">⚙️</button>
+</div>
+
+<div id="fishhud" class="hidden"></div>
+
+<div id="actions">
+  <button class="act ctx hidden" id="btnCtx"></button>
+  <div class="actrow">
+    <button class="act small" id="btnInv"><span class="ic">🎒</span><span class="lb">Inventario</span></button>
+    <button class="act small" id="btnShop"><span class="ic">🏪</span><span class="lb">Tienda</span></button>
+  </div>
+  <button class="act big" id="btnCast"><span class="ic">🎣</span><span class="lb">LANZAR</span></button>
+</div>
+
+<div id="toasts"></div>
+<div id="modal" class="hidden"></div>
+<div id="dive" class="hidden"></div>
+
+<div id="title">
+  <div class="tbox">
+    <div class="logo">🎣</div>
+    <h1>Pesca Málaga</h1>
+    <p class="sub">Del espigón al mar abierto: colecciona todas las especies del Mediterráneo.</p>
+    <button class="btn primary" id="btnPlay">Jugar</button>
+    <button class="btn ghost hidden" id="btnNew">Empezar de nuevo</button>
+    <p class="tip" id="installTip"></p>
+  </div>
+</div>
+
+<div id="rotate" class="hidden">Gira el móvil o juega en vertical: la vista se adapta 🙂</div>
+
+<script src="js/data.js"></script>
+<script src="js/species2.js"></script>
+<script src="js/util.js"></script>
+<script src="js/state.js"></script>
+<script src="js/tex.js"></script>
+<script src="js/fishart.js"></script>
+<script src="js/world.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/fishing.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/dive.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
