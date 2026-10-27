@@ -1,6 +1,6 @@
 {
-  "name": "Pesca en Málaga",
-  "short_name": "Pesca Málaga",
+  "name": "PescaitoGame",
+  "short_name": "Pescaito",
   "description": "Juego de pesca por el Mediterráneo, vista desde arriba.",
   "start_url": "./index.html",
   "scope": "./",
