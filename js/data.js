@@ -99,9 +99,9 @@ G.HOOKS = [
   { id: 'h0', name: 'Anzuelo nº 12', pts: 3, price: 0, tier: 0 },
   { id: 'h1', name: 'Anzuelo nº 9', pts: 6, price: 25, tier: 1 },
   { id: 'h2', name: 'Anzuelo nº 6', pts: 10, price: 90, tier: 2 },
-  { id: 'h3', name: 'Anzuelo nº 3', pts: 16, price: 300, tier: 3 },
-  { id: 'h4', name: 'Anzuelo 1/0', pts: 24, price: 900, tier: 4 },
-  { id: 'h5', name: 'Anzuelo 4/0', pts: 34, price: 2200, tier: 5 },
+  { id: 'h3', name: 'Anzuelo nº 4', pts: 16, price: 300, tier: 3 },
+  { id: 'h4', name: 'Anzuelo nº 2', pts: 24, price: 900, tier: 4 },
+  { id: 'h5', name: 'Anzuelo nº 1', pts: 34, price: 2200, tier: 5 },
 ];
 G.BAITS = [
   { id: 'gusano', name: 'Gusanos', pts: 2, price: 1, pack20: 17.5, icon: '🪱', tier: 1, wait: 1.55, maxRar: 1, desc: 'Baratos, pero tardan en picar y solo atraen peces comunes y poco comunes.' },

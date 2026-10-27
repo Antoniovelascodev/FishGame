@@ -72,7 +72,7 @@ G.UI = (function () {
       if (d.phase === 'charge') box.innerHTML = `<div class="card"><div class="lbl"><span>Potencia del lanzamiento</span><span id="fhd"></span></div><div class="bar pw"><i id="fhp"></i></div><div class="lbl" style="margin:6px 0 0"><span id="fhh"></span><span id="fhok"></span></div></div>`;
       else if (d.phase === 'wait') box.innerHTML = `<div class="card" style="text-align:center">🎣 Esperando picada…<div class="lbl" style="justify-content:center;margin:4px 0 0">Muévete para recoger el sedal</div></div>`;
       else if (d.phase === 'nibble') box.innerHTML = `<div class="card" style="text-align:center">👀 ¡Algo se acerca al cebo!</div>`;
-      else if (d.phase === 'bite') box.innerHTML = `<div class="card warnflash"><div style="display:flex;justify-content:space-between;align-items:center"><div><div id="fbn" style="font-weight:900;font-size:18px"></div><div class="lbl" style="margin:2px 0 0">Prob. de captura</div></div><div class="pct" id="fbp"></div></div><div class="bar time" style="margin-top:8px"><i id="fbt"></i></div><div class="chips" id="fbc"></div></div>`;
+      else if (d.phase === 'bite') box.innerHTML = `<div class="card warnflash"><div style="display:flex;justify-content:space-between;align-items:center"><div><div id="fbn" style="font-weight:900;font-size:18px"></div><div class="lbl" style="margin:2px 0 0"><span id="fbs"></span></div></div><div class="pct" id="fbp"></div></div><div class="bar time" style="margin-top:8px"><i id="fbt"></i></div><div class="chips" id="fbc"></div></div>`;
       else if (d.phase === 'fight') box.innerHTML = `<div class="card"><div class="lbl"><span id="ffn"></span><span id="ffs"></span></div><div class="bar"><i id="ffp"></i></div><div class="lbl" style="margin:8px 0 4px"><span>Tensión del hilo</span><span id="fft"></span></div><div class="bar tens"><i id="fftb"></i></div></div>`;
     }
     const g = (id) => $(id);
@@ -84,6 +84,7 @@ G.UI = (function () {
     } else if (d.phase === 'bite') {
       const i = d.info;
       g('fbn').textContent = d.name; g('fbn').style.color = d.rar ? G.RARITY[d.rar].color : '#fff';
+      g('fbs').textContent = '≈ ' + d.cm + ' cm · ' + U.kg(d.kg) + ' · prob. de captura';
       g('fbp').textContent = i.pct + '%'; g('fbp').style.color = i.pct >= 55 ? '#6df0b6' : i.pct >= 30 ? '#ffe27a' : '#ff8a6b';
       g('fbt').style.width = Math.max(0, d.timeLeft == null ? 100 : d.timeLeft * 100) + '%';
       const c = g('fbc');
@@ -103,8 +104,11 @@ G.UI = (function () {
 
   /* ---------- Modales ---------- */
   const modal = $('modal');
-  function open(type, tab) { ms = { type, tab: tab || null, detail: null }; G.Audio.play('click'); render(); modal.classList.remove('hidden'); }
-  function close() { ms = null; modal.classList.add('hidden'); modal.innerHTML = ''; UI.refreshHud(); G.save(); }
+  const hookRange = (x) => x.cm[0] <= 0 ? 'hasta ' + x.cm[1] + ' cm' : x.cm[1] >= 400 ? 'desde ' + x.cm[0] + ' cm' : x.cm[0] + '–' + x.cm[1] + ' cm';
+  function open(type, tab) { ms = { type, tab: tab || null, detail: null }; if (type === 'market') ms.mk = newMk(); G.Audio.play('click'); render(); modal.classList.remove('hidden'); }
+  function close() {
+    if (ms && ms.type === 'market' && ms.mk.committed) { UI.toast('Ya has jugado: tienes que vendérselo al tendero', 'warn'); return; }
+    ms = null; modal.classList.add('hidden'); modal.innerHTML = ''; UI.refreshHud(); G.save(); }
   UI.open = function (type, tab) {
     if (G.Fish.locked() && type !== 'menu') { UI.toast('Estás pescando: termina primero 🎣', 'warn'); return; }
     if (G.Dive && G.Dive.active) return;
@@ -116,7 +120,7 @@ G.UI = (function () {
     inv: [['capturas', '🐟 Capturas'], ['equipo', '🎣 Equipo'], ['cebos', '🪱 Cebos'], ['album', '📖 Álbum']],
     shop: [['canas', 'Cañas'], ['hilos', 'Hilos'], ['anzuelos', 'Anzuelos'], ['cebos', 'Cebos'], ['neveras', '🧊 Neveras'], ['buceo', 'Buceo'], ['extras', 'Extras']],
   };
-  const TITLES = { inv: 'Inventario', shop: 'Pesca El Anzuelo', sellshop: 'Tu pescadería', lonja: 'Lonja · Proveedores', plan: 'Preparar la jornada', map: 'Mapa de Málaga', menu: 'Ajustes' };
+  const TITLES = { inv: 'Inventario', shop: 'Pesca El Anzuelo', market: '🎲 Mercadillo', lonja: 'Lonja · Proveedores', plan: 'Preparar la jornada', map: 'Mapa de Málaga', menu: 'Ajustes' };
 
   function render() {
     if (!ms) return;
@@ -126,7 +130,7 @@ G.UI = (function () {
     let body = '';
     if (ms.type === 'inv') body = invBody();
     else if (ms.type === 'shop') body = shopBody();
-    else if (ms.type === 'sellshop') body = sellBody('shop');
+    else if (ms.type === 'market') body = marketBody();
     else if (ms.type === 'lonja') body = sellBody('lonja');
     else if (ms.type === 'plan') body = planBody();
     else if (ms.type === 'map') body = mapBody();
@@ -179,7 +183,8 @@ G.UI = (function () {
       };
       sect('Cañas', G.RODS, S.owned.rods, 'rod', x => `Alcance ${x.reach} m · +${x.pts} pts · aguanta ${x.cap} kg`);
       sect('Hilos', G.LINES, S.owned.lines, 'line', x => `+${x.pts} pts · aguanta ${Math.round(100 / x.tension)}% · hasta ${x.cap} kg`);
-      sect('Anzuelos', G.HOOKS, S.owned.hooks, 'hook', x => `+${x.pts} pts · nivel ${x.tier}`);
+      h += `<p class="ds" style="color:var(--mut);margin:10px 2px 0">🪝 Cuanto <b>menor</b> es el número del anzuelo, <b>mayor</b> es el pez que coge.</p>`;
+      sect('Anzuelos', G.HOOKS, S.owned.hooks, 'hook', x => `+${x.pts} pts · peces de ${hookRange(x)}`);
       if (S.owned.spears.length) sect('Arpones', G.SPEARS, S.owned.spears, 'spear', x => `+${x.pts} pts · alcance ${x.range} m`);
       const extra = [];
       G.DIVE_GEAR.forEach(g => S.owned.gear.includes(g.id) && extra.push(g.icon + ' ' + g.name));
@@ -211,7 +216,7 @@ G.UI = (function () {
         <div class="item"><div class="meta"><div class="ds">Cuándo</div><div class="nm">${when}</div></div></div>
         <div class="item"><div class="meta"><div class="ds">Dónde se pesca</div><div class="nm">${modes}</div></div></div>
         <div class="item"><div class="meta"><div class="ds">Cebo favorito</div><div class="nm">${G.BAITS[bi].icon} ${G.BAITS[bi].name}</div></div></div>
-        <div class="item"><div class="meta"><div class="ds">Dificultad · Anzuelo mínimo</div><div class="nm">${sp.diff} · nivel ${sp.hook}</div></div></div>
+        <div class="item"><div class="meta"><div class="ds">Dificultad · Anzuelos que lo cogen</div><div class="nm">${sp.diff} · ${G.HOOKS.filter(h => G.hookFitsSp(h, sp)).map(h => h.name.replace('Anzuelo ', '')).join(', ')}</div></div></div>
         <div class="item"><div class="meta"><div class="ds">Tus capturas</div><div class="nm">${rec.n} · récord ${rec.maxCm} cm / ${U.kg(rec.maxKg)}</div></div></div>`;
     }
     const order = ['comun', 'poco', 'raro', 'epico', 'leyenda'], fl = ms.filter || 'all';
@@ -248,7 +253,7 @@ G.UI = (function () {
     }).join('');
     if (t === 'canas') return `<p class="ds" style="color:var(--mut)">Más alcance = llegas a fondos y peces más lejanos (hasta las boyas, a 200 m).</p>` + list(G.RODS, S.owned.rods, 'rods', x => `Alcance ${x.reach} m · +${x.pts} pts · aguanta ${x.cap} kg`, 'rod');
     if (t === 'hilos') return `<p class="ds" style="color:var(--mut)">Un hilo mejor suma puntos y aguanta mejor los tirones.</p>` + list(G.LINES, S.owned.lines, 'lines', x => `+${x.pts} pts · aguanta ${Math.round(100 / x.tension)}% · hasta ${x.cap} kg`, 'line');
-    if (t === 'anzuelos') return `<p class="ds" style="color:var(--mut)">Los peces grandes necesitan anzuelos de mayor nivel.</p>` + list(G.HOOKS, S.owned.hooks, 'hooks', x => `+${x.pts} pts · nivel ${x.tier}`, 'hook');
+    if (t === 'anzuelos') return `<p class="ds" style="color:var(--mut)"><b>Cuanto MENOR es el número del anzuelo, MAYOR es el pez que coge.</b> El nº 12 es para peces pequeños y el nº 1 para los más grandes. Puedes cambiar de anzuelo en Inventario → Equipo.</p>` + list(G.HOOKS, S.owned.hooks, 'hooks', x => `+${x.pts} pts · peces de ${hookRange(x)}`, 'hook');
     if (t === 'cebos') return `<p class="ds" style="color:var(--mut)">El cebo se estropea al terminar el día: compra solo lo que vayas a usar. Mejor cebo = pica antes y atrae mejores peces.</p>` + G.BAITS.map(b => `<div class="item"><div style="font-size:34px">${b.icon}</div><div class="meta"><div class="nm">${b.name} <span class="ds">(tienes ${S.baits[b.id] || 0})</span></div><div class="ds">${b.desc} +${b.pts} pts</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="5" ${can(b.price * 5) ? '' : 'disabled'}>5 · ${U.money(b.price * 5)}</button><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="20" ${can(b.pack20) ? '' : 'disabled'}>20 · ${U.money(b.pack20)}</button></div></div>`).join('');
     if (t === 'neveras') return `<p class="ds" style="color:var(--mut)">Aquí guardas lo que pescas hasta venderlo. Las mejores neveras caben más peces y los mantienen frescos más tiempo.</p>` + G.COOLERS.map((c, i) => {
       const owned = i <= S.cooler;
@@ -320,6 +325,75 @@ G.UI = (function () {
     $('pSum').textContent = sm.text; $('pNight').textContent = sm.night ? '🌙 Incluye noche: sin la lámpara de pesca verás muy poco.' : '☀️ Jornada de día.';
   });
 
+  /* ----- Mercadillo: se vende apostando "mayor o menor" con un dado ----- */
+  const newMk = () => ({ stage: 'intro', die: 0, shown: 1, wins: 0, mult: 1, committed: false, rolling: false, forced: false, last: '' });
+  const bagBase = () => Math.round(G.S.bag.reduce((a, f) => a + G.fishValue(f) * G.SUPPLIER_MULT, 0) * 100) / 100;
+  const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function dieHTML(n, sz) {
+    let pips = '';
+    for (let i = 0; i < 9; i++) pips += `<i style="width:78%;height:78%;border-radius:50%;place-self:center;background:${PIPS[n].includes(i) ? '#1b2a3a' : 'transparent'}"></i>`;
+    return `<div style="width:${sz}px;height:${sz}px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:${Math.round(sz * 0.12)}px;gap:2px;background:#fff;border-radius:${Math.round(sz * 0.2)}px;box-shadow:0 6px 16px rgba(0,0,0,.4)">${pips}</div>`;
+  }
+  function multText(m) { return m > 1 ? '+' + Math.round((m - 1) * 100) + '% sobre la lonja' : m < 1 ? '50% menos que la lonja' : 'el precio de la lonja'; }
+  function marketBody() {
+    const S = G.S, mk = ms.mk;
+    if (!S.bag.length) return `<p style="color:var(--mut);text-align:center;margin-top:30px">No tienes peces para vender.<br>Vuelve cuando hayas pescado algo 🎣</p>`;
+    const base = bagBase(), offer = Math.round(base * mk.mult * 100) / 100;
+    let h = `<div class="card" style="margin-bottom:8px"><div class="lbl"><span>🐟 ${S.bag.length} peces</span><span>Lonja: ${U.money(base)}</span></div>
+      <div class="ds" style="color:var(--mut);margin-top:6px;line-height:1.4">El tendero tira un dado: adivina si el siguiente número será <b>mayor</b> o <b>menor</b>. Aciertas: te paga <b>+25%</b> sobre la lonja. Fallas: <b>50% menos</b>. Cuando juegas una ronda, <b>ya tienes que vendérselo a él</b>.</div></div>`;
+    if (mk.stage === 'intro') return h + `<button class="btn primary" style="width:100%" data-act="mk_roll">🎲 Que tire el dado</button><p class="ds" style="color:var(--mut);text-align:center">Si prefieres un precio fijo, véndelo en la lonja.</p>`;
+    h += `<div style="display:flex;justify-content:center;margin:12px 0 8px">${dieHTML(mk.rolling ? mk.shown : mk.die, 96)}</div>`;
+    if (mk.last) h += `<div class="pct" style="text-align:center;font-size:17px;line-height:1.3">${mk.last}</div>`;
+    h += `<div class="sum" style="margin-top:6px"><span>Oferta actual</span><span>${U.money(offer)} · ${multText(mk.mult)}</span></div>`;
+    const dis = mk.rolling ? 'disabled' : '';
+    if (mk.stage === 'guess') {
+      const c = mk.die, pu = Math.round((6 - c) / 6 * 100), pd = Math.round((c - 1) / 6 * 100);
+      h += `<div class="chips" style="justify-content:center;margin-bottom:8px"><span class="chip">Mayor ${pu}%</span><span class="chip">Menor ${pd}%</span><span class="chip">Igual ${100 - pu - pd}%</span></div>
+        <div style="display:flex;gap:8px"><button class="btn" style="flex:1" data-act="mk_guess" data-v="up" ${dis}>⬆️ Mayor</button><button class="btn" style="flex:1;background:linear-gradient(160deg,#2a79b0,#1b557d)" data-act="mk_guess" data-v="down" ${dis}>⬇️ Menor</button></div>`;
+      if (!mk.committed) h += `<button class="btn ghost" style="width:100%;margin-top:8px" data-act="close" ${dis}>Mejor no, me voy</button>`;
+    } else if (mk.forced) {
+      h += `<button class="btn primary" style="width:100%;font-size:16px" data-act="mk_sell">💶 Vender por ${U.money(offer)}</button>`;
+    } else {
+      h += `<div style="display:flex;gap:8px"><button class="btn ghost" style="flex:1" data-act="mk_more">🎲 Otra ronda<br><span style="font-size:11px;font-weight:600">arriesgas el bonus</span></button><button class="btn" style="flex:1" data-act="mk_sell">💶 Vender<br><span style="font-size:11px;font-weight:600">${U.money(offer)}</span></button></div>`;
+    }
+    return h;
+  }
+  function mkRoll(final, done) {
+    const mk = ms.mk; mk.rolling = true; let n = 0;
+    const iv = setInterval(() => {
+      if (!ms || ms.type !== 'market') { clearInterval(iv); return; }
+      mk.shown = ++n >= 9 ? final : 1 + ((Math.random() * 6) | 0);
+      if (n % 3 === 0) G.Audio.play('click');
+      if (n >= 9) { clearInterval(iv); mk.rolling = false; done(); }
+      render();
+    }, 85);
+    render();
+  }
+  function mkGuess(dir) {
+    const mk = ms.mk; if (mk.rolling) return;
+    mk.committed = true;
+    const prev = mk.die, final = 1 + ((Math.random() * 6) | 0);
+    mkRoll(final, () => {
+      mk.die = final; mk.stage = 'result';
+      if (final === prev) mk.last = `¡Empate con el ${final}! Nadie gana ni pierde.`;
+      else if ((dir === 'up' && final > prev) || (dir === 'down' && final < prev)) {
+        mk.wins++; mk.mult = 1 + 0.25 * mk.wins;
+        mk.last = `¡Aciertas! Salió el ${final}. Te pagan ${multText(mk.mult)}.`; G.Audio.play('win');
+      } else {
+        mk.mult = 0.5; mk.forced = true;
+        mk.last = `Fallas… salió el ${final}. Tienes que vendérselo con un 50% menos.`; G.Audio.play('lose');
+      }
+      render();
+    });
+  }
+  function mkSell() {
+    const S = G.S, mk = ms.mk, offer = Math.round(bagBase() * mk.mult * 100) / 100, n = S.bag.length;
+    S.money = Math.round((S.money + offer) * 100) / 100; S.stats.earned += offer; S.bag = [];
+    mk.committed = false; G.Audio.play('coin');
+    UI.toast(`Vendes ${n} peces por ${U.money(offer)}`, mk.mult >= 1 ? 'good' : 'warn');
+    close();
+  }
+
   /* ----- Mapa ----- */
   function mapBody() {
     if (G.S.phase === 'prep') return `<p style="color:var(--mut);text-align:center;margin-top:30px">Empieza la jornada para ir a pescar 🎣</p>`;
@@ -338,7 +412,7 @@ G.UI = (function () {
       💶 Vende en la tienda y mejora el equipo para pescar todas las especies.<br>🤿 Zona de buceo: arpón, aletas, neopreno y gafas.<br>🏄 Con la tabla de paddle llegas hasta las boyas (200 m).</div></div>
       <div class="sec">Datos</div>
       <div class="item"><div class="meta"><div class="nm">Empezar de nuevo</div><div class="ds">Borra tu partida guardada</div></div><button class="btn sm warn" data-act="reset">Borrar</button></div>
-      <p class="ds" style="color:var(--mut);text-align:center;margin-top:14px">Pesca Málaga · todo el arte y sonido generados por código.</p>`;
+      <p class="ds" style="color:var(--mut);text-align:center;margin-top:14px">FishGame · todo el arte y sonido generados por código.</p>`;
   }
 
   /* ----- Acciones ----- */
@@ -381,6 +455,10 @@ G.UI = (function () {
       S.bag.splice(i, 1); G.Audio.play('click'); return render();
     }
     if (act === 'startday') { close(); G.startDay(); return; }
+    if (act === 'mk_roll') { const f = 1 + ((Math.random() * 6) | 0); mkRoll(f, () => { ms.mk.die = f; ms.mk.stage = 'guess'; ms.mk.last = 'El tendero ha sacado un ' + f + '. ¿El siguiente será mayor o menor?'; render(); }); return; }
+    if (act === 'mk_guess') return mkGuess(d.v);
+    if (act === 'mk_more') { ms.mk.stage = 'guess'; ms.mk.last = 'Sigue en el ' + ms.mk.die + '. ¿Mayor o menor?'; return render(); }
+    if (act === 'mk_sell') return mkSell();
     if (act === 'swapout') {
       const c = ms.c, done = ms.done;
       if (d.v === 'NEW') UI.toast('Devuelves ' + G.SPECIES_BY_ID[c.sp].name.toLowerCase() + ' al mar 🌊');

@@ -31,7 +31,7 @@ G.Fish = (function () {
       if (!sp.modes.includes(mode)) continue;
       if (h.depth < sp.dmin || h.depth > sp.dmax) continue;
       if (!(sp.hab.includes('O') || sp.hab.includes(h.hab))) continue;
-      if (sp.hook > hookTier) continue;
+      if (!hookFits(sp)) continue;
       if (G.RAR_ORDER.indexOf(sp.rar) > G.BAITS[bi].maxRar) continue;
       const bt = G.BAITS[bi];
       let bf = sp.bait[bi]; if (bt.tier === 3) bf = Math.max(bf, 0.8);
@@ -55,10 +55,15 @@ G.Fish = (function () {
     return pick ? pick.sp : null;
   }
 
+  /* ¿cabe este pez en el anzuelo? (el largo del pez debe caer en el rango del anzuelo) */
+  function hookFits(sp) { return G.hookFitsSp(G.hook(), sp); }
   function makeSize(sp) {
-    let s = Math.pow(Math.random(), 1.8);
-    if (Math.random() < 0.03) s = 0.9 + Math.random() * 0.1;
-    return s;
+    // el tamaño sale del rango que admite el anzuelo
+    const r = G.hook().cm, span = Math.max(1, sp.cm[1] - sp.cm[0]);
+    const s0 = U.clamp((r[0] - sp.cm[0]) / span, 0, 1), s1 = U.clamp((r[1] - sp.cm[0]) / span, 0, 1);
+    let raw = Math.pow(Math.random(), 1.8);
+    if (Math.random() < 0.03) raw = 0.9 + Math.random() * 0.1;
+    return s0 + (s1 - s0) * raw;
   }
   function gearPoints(sp, sizeF) {
     const bait = G.BAITS.find(b => b.id === G.S.eq.bait), bi = G.BAIT_INDEX[bait.id];
@@ -211,11 +216,11 @@ G.Fish = (function () {
         const sp = pickSpecies(F.target.x, F.target.y, F.school);
         if (!sp) {
           F.emptyTries++;
-          if (F.emptyTries >= 3) { G.UI.toast('Aquí no pica nada con este cebo. Prueba otro lugar o cebo.', 'warn'); F.retrieve(true); return; }
+          if (F.emptyTries >= 3) { G.UI.toast('Aquí no pica nada con este cebo y anzuelo. Prueba otro anzuelo, cebo o lugar.', 'warn'); F.retrieve(true); return; }
           F.waitT = U.rand(5, 9); return;
         }
         const sizeF = makeSize(sp);
-        F.cur = { sp, sizeF, info: gearPoints(sp, sizeF) };
+        F.cur = { sp, sizeF, info: gearPoints(sp, sizeF), cm: Math.round(U.lerp(sp.cm[0], sp.cm[1], sizeF)), kg: Math.round(U.lerp(sp.kg[0], sp.kg[1], Math.pow(sizeF, 1.6)) * 100) / 100 };
         F.state = 'nibble'; F.nibT = U.rand(0.9, 1.7); F.nibTick = 0;
         G.UI.fishHud({ phase: 'nibble' });
       }
@@ -231,14 +236,14 @@ G.Fish = (function () {
         if (navigator.vibrate) try { navigator.vibrate(60); } catch (e) { }
         const known = !!G.S.album[F.cur.sp.id];
         G.UI.fishHud({
-          phase: 'bite', known, name: known ? F.cur.sp.name : '???', info: F.cur.info,
+          phase: 'bite', known, name: known ? F.cur.sp.name : '???', info: F.cur.info, cm: F.cur.cm, kg: F.cur.kg,
           rar: known ? F.cur.sp.rar : null,
         });
       }
     } else if (st === 'bite') {
       F.biteT += dt;
       if (Math.random() < dt * 5) F.rings.push({ x: F.target.x, y: F.target.y, t: 0, life: 0.8 });
-      G.UI.fishHud({ phase: 'bite', timeLeft: 1 - F.biteT / F.biteWin, known: !!G.S.album[F.cur.sp.id], name: G.S.album[F.cur.sp.id] ? F.cur.sp.name : '???', info: F.cur.info, rar: G.S.album[F.cur.sp.id] ? F.cur.sp.rar : null });
+      G.UI.fishHud({ phase: 'bite', timeLeft: 1 - F.biteT / F.biteWin, known: !!G.S.album[F.cur.sp.id], name: G.S.album[F.cur.sp.id] ? F.cur.sp.name : '???', info: F.cur.info, cm: F.cur.cm, kg: F.cur.kg, rar: G.S.album[F.cur.sp.id] ? F.cur.sp.rar : null });
       if (F.biteT >= F.biteWin) {
         G.UI.toast('Se ha comido el cebo y se ha ido 😕', 'warn');
         F.state = 'idle'; F.cur = null; G.UI.fishHud(null); G.UI.refreshHud();

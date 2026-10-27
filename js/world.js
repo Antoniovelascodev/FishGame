@@ -121,7 +121,7 @@ G.World = (function () {
   const buildings = [];
   (function () {
     const named = [
-      { x: 380, w: 190, label: 'TU PESCADERÍA', kind: 'fishshop', wall: '#f2f2ee', awn: '#2d7fc4' },
+      { x: 380, w: 190, label: 'MERCADILLO', kind: 'fishshop', wall: '#f2f2ee', awn: '#2d7fc4' },
       { x: 600, w: 200, label: 'PESCA EL ANZUELO', kind: 'tackle', wall: '#f0dcb4', awn: '#d9552e' },
       { x: 830, w: 190, label: 'LONJA · PROVEEDORES', kind: 'lonja', wall: '#e1e9ea', awn: '#2c8c6a' },
     ];
@@ -454,7 +454,7 @@ G.World = (function () {
       ctx.fillStyle = '#fff'; ctx.font = '700 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(b.label, x + w / 2, y + 53);
       ctx.font = '26px serif';
-      ctx.fillText(b.kind === 'fishshop' ? '🐟' : b.kind === 'tackle' ? '🎣' : '⚓', x + w / 2, y + 108);
+      ctx.fillText(b.kind === 'fishshop' ? '🎲' : b.kind === 'tackle' ? '🎣' : '⚓', x + w / 2, y + 108);
       const open = G.S.phase === 'prep';
       ctx.font = '700 10px system-ui'; ctx.fillStyle = open ? '#2fbf7a' : '#e0584a';
       ctx.fillText(open ? 'ABIERTO' : 'CERRADO', x + w / 2, y + 78);
@@ -480,6 +480,11 @@ G.World = (function () {
     ctx.fillRect(vis.x0, PROM_Y0, vis.x1 - vis.x0, PROM_Y1 - PROM_Y0);
     ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(vis.x0, PROM_Y0, vis.x1 - vis.x0, 4);
     ctx.fillStyle = '#e9dcc0'; ctx.fillRect(vis.x0, PROM_Y0 + 4, vis.x1 - vis.x0, 5);
+    // suelo detrás de los edificios y acera hasta la calle (antes quedaba sin pintar y se veían rayas y restos)
+    ctx.fillStyle = '#a79f91'; ctx.fillRect(vis.x0, PROM_Y1, vis.x1 - vis.x0, 1720 - PROM_Y1);
+    ctx.fillStyle = 'rgba(0,0,0,0.10)'; ctx.fillRect(vis.x0, PROM_Y1, vis.x1 - vis.x0, 6);
+    ctx.fillStyle = '#c9c2b4'; ctx.fillRect(vis.x0, 1708, vis.x1 - vis.x0, 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(vis.x0, 1720, vis.x1 - vis.x0, 3);
     // edificios
     for (const b of buildings) if (b.x < vis.x1 && b.x + b.w > vis.x0) drawBuilding(ctx, b);
     // calle

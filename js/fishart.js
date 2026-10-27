@@ -76,6 +76,23 @@ G.FishArt = (function () {
     };
 
     switch (shape) {
+      case 'seahorse': {
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const col = shadow ? 'rgba(2,14,32,0.62)' : c;
+        ctx.strokeStyle = col; ctx.lineWidth = 0.17;
+        ctx.beginPath(); ctx.moveTo(0.08, -0.22); ctx.bezierCurveTo(0.2, -0.02, 0.16, 0.12, 0.0, 0.2); ctx.stroke();
+        ctx.lineWidth = 0.07; ctx.beginPath(); ctx.moveTo(0.0, 0.2); ctx.bezierCurveTo(-0.14, 0.3, -0.3 + tail, 0.3, -0.28, 0.14); ctx.bezierCurveTo(-0.26, 0.05, -0.17, 0.08, -0.18, 0.14); ctx.stroke();
+        ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(0.12, -0.29, 0.1, 0.075, -0.35, 0, 6.3); ctx.fill();
+        ctx.lineWidth = 0.045; ctx.beginPath(); ctx.moveTo(0.2, -0.28); ctx.lineTo(0.36, -0.23); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0.02, -0.3); ctx.lineTo(0.0, -0.4 + tail); ctx.lineTo(0.08, -0.33); ctx.fill();
+        if (!shadow) {
+          ctx.fillStyle = shade(c, -0.3); ctx.beginPath(); ctx.ellipse(0.1, 0.0, 0.05, 0.08 + tail, 0.2, 0, 6.3); ctx.fill();
+          ctx.strokeStyle = shade(c, -0.25); ctx.lineWidth = 0.014; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0.1 + i * 0.012, -0.2 + i * 0.09); ctx.lineTo(0.2 + i * 0.01, -0.18 + i * 0.09); ctx.stroke(); }
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0.14, -0.31, 0.022, 0, 6.3); ctx.fill();
+          ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0.145, -0.31, 0.012, 0, 6.3); ctx.fill();
+        }
+        break;
+      }
       case 'ray': {
         const wob = Math.sin(ph) * 0.05;
         fill(c);

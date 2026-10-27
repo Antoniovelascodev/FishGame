@@ -67,7 +67,6 @@ window.G = window.G || {};
     let lostFish = 0;
     if (rescue) { fee = Math.round(S.money * 50) / 100; S.money = Math.round((S.money - fee) * 100) / 100; lostFish = S.bag.length; S.bag = []; }
     S.phase = 'prep'; S.day++;
-    S.market.prev = S.market.pct; S.market.pct = Math.round((Math.random() + Math.random() - 1) * 50);
     S.swell = U.clamp(S.swell + U.pick([-1, 0, 0, 1, 1]), 0, 3);
     G.Audio.setSwell(S.swell);
     G.env.hour = S.time = 12; updateNight();
@@ -75,7 +74,7 @@ window.G = window.G || {};
     let tot = 0; S.bag.forEach(f => tot += G.fishValue(f));
     G.save(); G.UI.refreshHud();
     G.UI.showMsg(rescue ? '🚨 ¡Rescate en el mar!' : early ? '🏁 Jornada terminada' : '🌅 Fin de la jornada',
-      `${rescue ? `Te quedaste sin aire y los socorristas tuvieron que sacarte del agua. Pagas el rescate: −${U.money(fee)} (el 50% de tu dinero)${lostFish ? ` y pierdes los ${lostFish} peces de la nevera` : ''}. La jornada termina aquí.<br>` : ''}Has pescado ${S.dayLog.fish} peces. En la nevera llevas ${S.bag.length} (valor actual ${U.money(tot)}).<br>${lost ? `🪱 ${lost} cebos sobrantes se han echado a perder.<br>` : ''}${S.market.pct > 0 ? '📈 Hoy en tu pescadería el pescado se paga un ' + S.market.pct + '% más caro.' : S.market.pct < 0 ? '📉 Hoy en tu pescadería el pescado está un ' + (-S.market.pct) + '% más barato.' : 'Hoy el pescado está a precio normal.'}<br>Vende en tu pescadería o en la lonja (precio fijo), compra material y prepara el siguiente día.`);
+      `${rescue ? `Te quedaste sin aire y los socorristas tuvieron que sacarte del agua. Pagas el rescate: −${U.money(fee)} (el 50% de tu dinero)${lostFish ? ` y pierdes los ${lostFish} peces de la nevera` : ''}. La jornada termina aquí.<br>` : ''}Has pescado ${S.dayLog.fish} peces. En la nevera llevas ${S.bag.length} (valor actual ${U.money(tot)}).<br>${lost ? `🪱 ${lost} cebos sobrantes se han echado a perder.<br>` : ''}Vende en el mercadillo (te la juegas a los dados) o en la lonja (precio fijo), compra material y prepara el siguiente día.`);
   }
   G.endDay = endDay;
   G.dayButton = function () {
@@ -95,7 +94,7 @@ window.G = window.G || {};
     if (sh) {
       if (S.phase !== 'prep') return { label: '🔒 Cerrado hasta terminar el día', run: () => G.UI.toast('Las tiendas abren cuando termina la jornada', 'warn') };
       if (sh.kind === 'tackle') return { label: '🎣 Entrar: Pesca El Anzuelo', run: () => G.UI.open('shop') };
-      if (sh.kind === 'fishshop') return { label: '🐟 Entrar: Tu pescadería', run: () => G.UI.open('sellshop') };
+      if (sh.kind === 'fishshop') return { label: '🎲 Entrar: Mercadillo', run: () => G.UI.open('market') };
       return { label: '🚚 Entrar: Lonja', run: () => G.UI.open('lonja') };
     }
     if (S.phase !== 'day') return null;

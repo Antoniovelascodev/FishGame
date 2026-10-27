@@ -67,6 +67,11 @@ window.G = window.G || {};
     S('lamprea', 'Lamprea marina', 'Petromyzon marinus', 'raro', 'A', 5, 60, 'noche', OP, 55, 3, [60, 120], [.5, 2.5], 28, 'long', '#5a5a48', [.4, 1.6, 1], { desc: 'No tiene mandíbulas: se agarra a otros peces con una boca de ventosa llena de dientes. Un parásito casi prehistórico.' }),
     S('cinta', 'Pez cinta', 'Lepidopus caudatus', 'raro', 'O', 100, 190, 'noche', OP, 50, 2, [80, 150], [.5, 3], 12, 'long', '#c8d2d6', [.2, 1.6, .5], { desc: 'Cuerpo largo y plateado como una cinta de acero. De noche sube desde el fondo hasta la superficie.' }),
     S('piloto', 'Pez piloto', 'Naucrates ductor', 'raro', 'O', 40, 190, 'dia', ['paddle'], 48, 2, [25, 50], [.3, 1.5], 10, 'fish', '#5a82a8', [0, 1.5, .5], { pat: 'stripes', desc: 'Rayado de azul, acompaña a tiburones y barcos aprovechando los restos de comida. De ahí su nombre.' }),
+    // ---- Pequeñas y muy valiosas por su rareza (solo anzuelos pequeños)
+    S('cardenal', 'Pez cardenal', 'Apogon imberbis', 'poco', 'R', 3, 40, 'noche', OS, 30, 0, [8, 14], [.01, .04], 400, 'fish', '#e0603a', [1.4, .4, 1], { keepShallow: true, desc: 'Rojo y de ojos enormes: de día se esconde en cuevas y de noche caza. El macho incuba los huevos dentro de su boca.' }),
+    S('angula', 'Angula', 'Anguilla anguilla', 'raro', 'A', 0, 8, 'noche', ['orilla'], 52, 0, [6, 9], [.002, .006], 9000, 'long', '#d8e0d0', [.3, 1.6, 1], { keepShallow: true, desc: 'La cría transparente de la anguila, casi invisible, que sube por las desembocaduras. Es de lo más caro de la mesa y su captura está muy regulada.' }),
+    S('pipa', 'Pez pipa', 'Syngnathus acus', 'raro', 'P', 1, 30, 'dia', OS, 50, 0, [12, 22], [.003, .012], 3500, 'long', '#8aa05a', [.3, 1, 1.5], { keepShallow: true, desc: 'Pariente alargado del caballito de mar y igual de raro: es el macho quien lleva los huevos en una bolsa del vientre. Se camufla entre la posidonia.' }),
+    S('caballito', 'Caballito de mar', 'Hippocampus guttulatus', 'epico', 'P', 1, 25, 'dia', OS, 70, 0, [10, 16], [.01, .03], 6000, 'seahorse', '#d8a838', [.2, .6, 1.6], { keepShallow: true, desc: 'Un pez, aunque no lo parezca: se agarra a la posidonia con la cola y es el macho quien da a luz a las crías. Está protegido: encontrar uno es un regalo del mar.' }),
     // ---- Épicos
     S('gitano', 'Gitano', 'Mycteroperca rubra', 'epico', 'R', 15, 120, 'any', ['sub'], 75, 4, [70, 140], [6, 35], 40, 'fish', '#8a6a4a', [1, 1, 1], { pat: 'spots', desc: 'Primo del mero que cambia de color según su estado de ánimo. Tímido y difícil de ver.' }),
     S('albacora', 'Albacora', 'Thunnus alalunga', 'epico', 'O', 90, 190, 'dia', ['paddle'], 82, 4, [80, 130], [15, 40], 14, 'tuna', '#3f6a90', [0, 2, 0], { desc: 'Su larguísima aleta pectoral la delata. Es el «atún blanco» de las conservas.' }),
@@ -138,7 +143,7 @@ window.G = window.G || {};
 
   /* Lo grande y valioso vive mar adentro: mínimo 120 m de la orilla */
   for (const sp of G.SPECIES) {
-    if (sp.rar === 'epico' || sp.rar === 'leyenda' || (sp.rar === 'raro' && sp.kg[1] >= 10)) { sp.dmin = Math.max(sp.dmin, 120); sp.dmax = 190; }
+    if (!sp.keepShallow && (sp.rar === 'epico' || sp.rar === 'leyenda' || (sp.rar === 'raro' && sp.kg[1] >= 10))) { sp.dmin = Math.max(sp.dmin, 120); sp.dmax = 190; }
     if (['mero', 'langosta', 'bogavante', 'gitano', 'cherna'].includes(sp.id)) sp.hab = 'RA';
   }
 
@@ -165,6 +170,11 @@ window.G = window.G || {};
     { id: 'vaper', name: 'Vaper desechable', desc: 'Lleva una batería de litio y plásticos: nunca debe acabar en el mar. Ha llegado hasta el fondo.' },
     { id: 'bolsa', name: 'Bolsa de plástico', desc: 'Las tortugas la confunden con una medusa y se la comen. Es una de las basuras más comunes del Mediterráneo.' },
   ];
+
+  /* Cada anzuelo solo pica peces de cierto largo (cm): los pequeños, peces pequeños; los grandes, peces grandes */
+  [[0, 22], [0, 32], [18, 50], [30, 75], [50, 130], [80, 500]].forEach((r, i) => { G.HOOKS[i].cm = r; });
+
+  G.hookFitsSp = (h, sp) => Math.min(sp.cm[1], h.cm[1]) - Math.max(sp.cm[0], h.cm[0]) >= Math.max(2, 0.12 * (sp.cm[1] - sp.cm[0]));
 
   /* Peso máximo (kg) que aguantan caña e hilo: un pez más pesado es casi imposible de sacar */
   [3, 6, 12, 25, 60, 200].forEach((c, i) => { G.RODS[i].cap = c; });

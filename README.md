@@ -1,4 +1,4 @@
-# 🎣 Pesca Málaga
+# 🎣 FishGame (Pesca Málaga)
 
 Juego de pesca por el Mediterráneo, ambientado en Málaga y visto desde arriba. Pensado **primero para móvil** (iPhone/Android), con joystick táctil y tres botones: **Lanzar**, **Inventario** y **Tienda**.
 
@@ -77,3 +77,8 @@ js/main.js      bucle, jugador, cámara, día/noche
 - Si te quedas sin aire buceando, **los socorristas te rescatan**: termina el día y pagas el 50% de tu dinero y pierdes los peces de la nevera.
 - Al encontrar un pez buceando ves su **imagen** (silueta si aún no lo conoces).
 - Pesca y bucea **basura** (lata, botella, vaper, bolsa de plástico) con ficha educativa.
+
+## v5: anzuelos por tamaño y mercadillo con dado
+
+- Cada **anzuelo** solo coge peces de cierto largo (nº 12: hasta 22 cm … nº 1: desde 80 cm). Cuanto menor es el número, mayor es el pez que coge.. La picada muestra el tamaño aproximado del pez.
+- Tu pescadería se sustituye por el **mercadillo**: el tendero tira un dado y adivinas si el siguiente número será mayor o menor. Aciertas: +25% sobre la lonja (acumulable si sigues); fallas: 50% menos. Tras jugar una ronda, vendes a él sí o sí. La lonja sigue con precio fijo.
