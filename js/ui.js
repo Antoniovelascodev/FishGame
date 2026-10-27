@@ -412,7 +412,7 @@ G.UI = (function () {
       💶 Vende en la tienda y mejora el equipo para pescar todas las especies.<br>🤿 Zona de buceo: arpón, aletas, neopreno y gafas.<br>🏄 Con la tabla de paddle llegas hasta las boyas (200 m).</div></div>
       <div class="sec">Datos</div>
       <div class="item"><div class="meta"><div class="nm">Empezar de nuevo</div><div class="ds">Borra tu partida guardada</div></div><button class="btn sm warn" data-act="reset">Borrar</button></div>
-      <p class="ds" style="color:var(--mut);text-align:center;margin-top:14px">FishGame · todo el arte y sonido generados por código.</p>`;
+      <p class="ds" style="color:var(--mut);text-align:center;margin-top:14px">Pesca en Málaga · todo el arte y sonido generados por código.</p>`;
   }
 
   /* ----- Acciones ----- */

@@ -1,4 +1,4 @@
-# 🎣 FishGame (Pesca Málaga)
+# 🎣 Pesca en Málaga
 
 Juego de pesca por el Mediterráneo, ambientado en Málaga y visto desde arriba. Pensado **primero para móvil** (iPhone/Android), con joystick táctil y tres botones: **Lanzar**, **Inventario** y **Tienda**.
 
@@ -51,6 +51,12 @@ js/dive.js      pesca submarina
 js/ui.js        HUD, inventario, tienda, álbum
 js/main.js      bucle, jugador, cámara, día/noche
 ```
+
+## Para publicarlo como app de pago (hoja de ruta)
+
+- Empaquetar con **Capacitor** (iOS/Android) → requiere cuenta Apple Developer (99 €/año) y un Mac (o servicio de build en la nube como Codemagic/EAS).
+- Pulir para tienda: iconos y capturas finales, política de privacidad, ajuste de balance.
+- Pendiente de tu diseño: kayak, barco, puerto desbloqueable, misiones/encargos, eventos (bancos de peces, tormentas).
 
 ## Jornadas, neveras y tiendas (v2)
 

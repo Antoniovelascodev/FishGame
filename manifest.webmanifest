@@ -1,6 +1,6 @@
 {
-  "name": "FishGame",
-  "short_name": "FishGame",
+  "name": "Pesca en Málaga",
+  "short_name": "Pesca Málaga",
   "description": "Juego de pesca por el Mediterráneo, vista desde arriba.",
   "start_url": "./index.html",
   "scope": "./",
