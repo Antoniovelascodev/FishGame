@@ -10,7 +10,10 @@ window.G = window.G || {};
   G.env = { t: 0, hour: 9, night: 0, warm: 0, swell: 1, swellF: 1 };
   G.P = { x: 520, y: 1100, ang: -Math.PI / 2, walk: 0, moving: false, wakeT: 0 };
   const cam = { x: 520, y: 1000 };
-  let vw = 0, vh = 0, dpr = 1, zoom = 1;
+  let vw = 0, vh = 0, dpr = 1, zoom = 1, baseZoom = 1, uz = 1;
+  try { uz = U.clamp(parseFloat(localStorage.getItem('pesca-zoom')) || 1, 0.85, 2.2); } catch (e) {}
+  function setUz(v) { uz = U.clamp(v, 0.85, 2.2); zoom = baseZoom * uz; try { localStorage.setItem('pesca-zoom', uz.toFixed(2)); } catch (e) {} }
+  G.zoomBy = (m) => setUz(uz * m);
   let running = false;
 
   function resize() {
@@ -18,8 +21,16 @@ window.G = window.G || {};
     vw = window.innerWidth; vh = window.innerHeight;
     canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
     dark.width = canvas.width; dark.height = canvas.height;
-    zoom = U.clamp(Math.min(vw / 560, vh / 640), 0.55, 1.35);
+    baseZoom = U.clamp(Math.min(vw / 560, vh / 640), 0.55, 1.35); zoom = baseZoom * uz;
   }
+  document.getElementById('btnZoomIn').addEventListener('click', () => G.zoomBy(1.2));
+  document.getElementById('btnZoomOut').addEventListener('click', () => G.zoomBy(1 / 1.2));
+  window.addEventListener('wheel', (e) => { if (!e.target.closest || !e.target.closest('#modal')) G.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: true });
+  let pinch = 0;
+  const pd = (e) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  window.addEventListener('touchstart', (e) => { if (e.touches.length === 2) pinch = pd(e); }, { passive: true });
+  window.addEventListener('touchmove', (e) => { if (e.touches.length === 2 && pinch) { const d = pd(e); G.zoomBy(d / pinch); pinch = d; } }, { passive: true });
+  window.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch = 0; }, { passive: true });
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', () => setTimeout(resize, 200));
   resize();
@@ -64,7 +75,7 @@ window.G = window.G || {};
     if (S.phase !== 'day') return;
     if (G.Fish.state !== 'idle') { G.Fish.state = 'idle'; G.Fish.cur = null; G.Fish.rings.length = 0; G.UI.fishHud(null); }
     if (S.onPaddle) { S.board = { x: P.x, y: W.shoreY(P.x) + 36 }; S.onPaddle = false; }
-    let lost = 0; for (const b of G.BAITS) { lost += S.baits[b.id] || 0; S.baits[b.id] = 0; }
+    let lost = 0; for (const b of G.BAITS) { if (b.starter) continue; lost += S.baits[b.id] || 0; S.baits[b.id] = 0; }
     let fee = 0;
     let lostFish = 0;
     if (rescue) { G.Ach.count('rescued'); fee = Math.round(S.money * 50) / 100; S.money = Math.round((S.money - fee) * 100) / 100; lostFish = S.bag.length; S.bag = []; }
@@ -96,11 +107,11 @@ window.G = window.G || {};
     // tiendas físicas del paseo
     const sh = W.buildings.find(b => b.label && p.x > b.x - 6 && p.x < b.x + b.w + 6 && p.y > W.PROM_Y1 - 120);
     if (sh) {
-      if (!G.shopOpen(sh.kind)) return { label: '🔒 Cerrado', run: () => G.UI.toast(sh.kind === 'tackle' ? 'La tienda de pesca abre de 9:00 a 18:00' : 'Las tiendas abren cuando termina la jornada', 'warn') };
-      if (sh.kind === 'tackle') return { label: '🎣 Entrar: Pesca El Anzuelo', run: () => G.UI.open('shop') };
-      if (sh.kind === 'fashion') return { label: '👕 Entrar: Moda Marinera', run: () => G.UI.open('fashion') };
+      const gear = ['bait', 'rods', 'spear', 'paddle', 'kayak'].includes(sh.kind);
+      if (!G.shopOpen(sh.kind)) return { label: '🔒 Cerrado', run: () => G.UI.toast(gear ? 'Esta tienda abre de 9:00 a 18:00' : 'Las tiendas abren cuando termina la jornada', 'warn') };
       if (sh.kind === 'stall') return { label: '🏪 Entrar: Tu pescadería', run: () => G.UI.open('stall') };
-      return { label: '🚚 Entrar: Lonja', run: () => G.UI.open('lonja') };
+      if (G.Fish.locked()) return null;
+      return { label: '🚪 Entrar: ' + sh.label.split(' · ')[0], run: () => G.Interior.enter(sh.kind) };
     }
     if (S.phase !== 'day') return null;
     if (S.onPaddle) {
@@ -143,6 +154,7 @@ window.G = window.G || {};
     if (G.Dive.active || G.UI.modalOpen()) { if (G.Dive.active) return; /* congelado */ }
     const paused = G.UI.modalOpen();
     if (paused) return;
+    if (G.Interior.active) { G.Interior.update(dt); return; }
 
     // reloj: 1 hora de juego = 15 s (solo durante la jornada)
     if (S.phase === 'day') {
@@ -234,8 +246,18 @@ window.G = window.G || {};
     if (!S.onPaddle) { c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(3, 6, 15, 12, 0, 0, 6.3); c.fill(); }
     G.Char.legs(c, L, { ang: P.ang, walk: P.walk, moving: P.moving && !act, seated: S.onPaddle });
     // caña
-    const aim = (F.state === 'idle' || F.state === 'result') ? P.ang : F.aim;
-    const dx = Math.cos(aim), dy = Math.sin(aim);
+    const using = F.state !== 'idle' && F.state !== 'result';
+    const dtR = Math.min(0.1, Math.max(0, t - (P.rodT || t))); P.rodT = t;
+    if (using) P.rodHold = 1.4; else P.rodHold = Math.max(0, (P.rodHold || 0) - dtR);
+    const want = (using || P.rodHold > 0) ? 1 : 0;
+    P.rodK = P.rodK == null ? want : P.rodK + Math.sign(want - P.rodK) * Math.min(Math.abs(want - P.rodK), dtR * 4.5);
+    const rk = P.rodK;
+    // sin pescar la caña va colgada a la espalda; al lanzar se saca con una animación
+    const aim0 = using ? F.aim : P.ang;
+    const back = P.ang + Math.PI - 0.75;
+    let da = aim0 - back; da = Math.atan2(Math.sin(da), Math.cos(da));
+    const e = rk * rk * (3 - 2 * rk), aim = back + da * e;
+    const dx = Math.cos(aim), dy = Math.sin(aim), RL = 30 + 14.5 * e;
     let hands = null, twist = 0;
     if (act) {
       const pose = G.Char.actPose(P, act); hands = pose.hands; twist = pose.twist;
@@ -244,12 +266,12 @@ window.G = window.G || {};
       c.lineCap = 'round';
       c.strokeStyle = '#5a3b22'; c.lineWidth = 3;
       c.beginPath(); c.moveTo(dx * 2.7, dy * 2.7);
-      c.quadraticCurveTo(dx * 27 - dy * bend * 0.5, dy * 27 + dx * bend * 0.5, dx * 44.5 - dy * bend * 1.3, dy * 44.5 + dx * bend * 1.3); c.stroke();
+      c.quadraticCurveTo(dx * RL * 0.6 - dy * bend * 0.5, dy * RL * 0.6 + dx * bend * 0.5, dx * RL - dy * bend * 1.3, dy * RL + dx * bend * 1.3); c.stroke();
       c.strokeStyle = '#d9c9a8'; c.lineWidth = 1.4;
       c.beginPath(); c.moveTo(dx * 16, dy * 16); c.lineTo(dx * 19, dy * 19); c.stroke();
       c.fillStyle = '#3a2a1c'; c.beginPath(); c.arc(dx * 8, dy * 8, 2.8, 0, 6.3); c.fill();
       const fishing = F.state !== 'idle' && F.state !== 'result';
-      hands = { r: { x: dx * 13.5 - dy * 2, y: dy * 13.5 + dx * 2 }, l: fishing ? { x: dx * 26 + dy * 2, y: dy * 26 - dx * 2 } : null };
+      if (rk > 0.45) hands = { r: { x: dx * 13.5 - dy * 2, y: dy * 13.5 + dx * 2 }, l: fishing ? { x: dx * 26 + dy * 2, y: dy * 26 - dx * 2 } : null };
     }
     G.Char.body(c, L, { ang: P.ang, walk: P.walk, moving: P.moving && !act, hands, twist });
     c.restore();
@@ -315,6 +337,7 @@ window.G = window.G || {};
 
   function render(dt) {
     if (G.Dive.active) return;
+    if (G.Interior.active) { G.Interior.draw(ctx, vw, vh, dpr); return; }
     const P = G.P, F = G.Fish, E = G.env;
     // cámara
     let tx = P.x, ty = P.y;
@@ -368,7 +391,7 @@ window.G = window.G || {};
     e.preventDefault(); btn.setPointerCapture(e.pointerId);
     G.Audio.unlock();
     G.Input.castHeld = true;
-    if (G.Dive.active || (G.UI.modalOpen() && G.Fish.state !== 'result')) return;
+    if (G.Dive.active || G.Interior.active || (G.UI.modalOpen() && G.Fish.state !== 'result')) return;
     G.Fish.press();
   });
   const up = (e) => {
@@ -380,7 +403,7 @@ window.G = window.G || {};
   $('btnCtx').addEventListener('click', () => { if (G.ctxRun) G.ctxRun(); });
   document.addEventListener('keydown', (e) => {
     if (e.repeat) return;
-    if (e.code === 'Space') { e.preventDefault(); G.Input.castHeld = true; if (!G.UI.modalOpen()) G.Fish.press(); }
+    if (e.code === 'Space') { e.preventDefault(); G.Input.castHeld = true; if (!G.UI.modalOpen() && !G.Interior.active) G.Fish.press(); }
     else if (e.key === 'i' || e.key === 'I') G.UI.open('inv');
     else if (e.key === 't' || e.key === 'T') G.dayButton();
     else if (e.key === 'e' || e.key === 'E') { if (G.ctxRun) G.ctxRun(); }
@@ -418,7 +441,7 @@ window.G = window.G || {};
     G.Audio.unlock(); G.Audio.setSwell(G.S.swell);
     $('title').classList.add('hidden');
     if (G.Cal.canClaim()) setTimeout(() => { if (!G.UI.modalOpen()) G.UI.open('cal'); }, 700);
-    if (G.S.phase === 'prep' && G.S.tutorial === 0) G.UI.toast('🏪 Compra cebo en Pesca El Anzuelo y pulsa ▶ Empezar día');
+    if (G.S.phase === 'prep' && G.S.tutorial === 0) G.UI.toast('🏪 Tienes 25 gusanos de aprendiz; en El Cebo hay más y pulsa ▶ Empezar día');
   });
   $('btnNew').addEventListener('click', () => { if (confirm('¿Borrar la partida y empezar de nuevo?')) { G.resetGame(); location.reload(); } });
 

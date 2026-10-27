@@ -33,6 +33,26 @@ G.Social = (function () {
     'Eh, eh, ¡mi bolso, mi bolso!', 'Qué poca vergüenza, hijo mío', 'Pásalo bien, pero lejos de mi toalla', 'Illo, que me estás tapando el sol del mediodía',
   ];
 
+  const GUIRI = [
+    'Oh my God, sorry mate! Is this the way to the sangria?', 'Watch it, pal! I only got my sunburn yesterday!', 'Excuse me, do you know where I can get a full English breakfast?',
+    'Is this the Costa del Sol or the Costa del Lobster? Look at my back!', 'Sorry, no hablo espanyol. Cerveza? Dos cerveza!', 'Ow! That was my good shoulder, I paid for this holiday!',
+    'Honey, a local just crashed into me! This is so authentic!', 'Mate, I have been here three days and I still cannot say "gracias".', 'Is it normal that everything closes at siesta time?',
+    'Why does the sea have so many fish and so few chips?', 'I came here for the sun, not for the bumper cars!', 'Two euros for a bottle of water?! In Manchester that is a pint!',
+    'Careful, I am carrying six sangrias for the group!', 'Does anyone here sell proper tea? PROPER tea?', 'I put on factor 5. FIVE. Now look at me, I am a prawn.',
+    'Is that a real fishing rod or are you just happy to see me?', 'We are lost. Is this Torremolinos? Marbella? Anywhere?', 'Sorry love, I thought you were the paella guy.',
+    'My wife says I should stop talking to strangers. Hello!', 'Everything is lovely, but where is the cheddar?', 'Oi! Mind my flip-flops, they were a bargain!',
+    'In England it is raining. Here you are hitting me. I prefer here.', 'Do they let you fish here? Because I just bought an inflatable flamingo.',
+    'Hola! Un espeto, por favor! Is that right? ESPETO?', 'Lovely weather! Shame about the sand in my sandwich.', 'My Spanish is like my tan: only half-done.',
+    'Wow, so this is how locals greet each other. I love it!', 'I need a cerveza right now!', 'This is "la ostia"!', 'Te vayas a tu pouta madre, espaniol!', 'Vamos a la playa, ole ole!', 'One more tinto de verano and I am a local, mate.', 'Mucho gracias, muy bonito, adios amigo!', 'Hasta la vista, baby! Did I say it right?', 'Un cafe con leche... and a pint. At 9 AM. Why not.', 'Hola, soy Steve. Me gusta la paella!', 'Buenos dias! Buenas noches! Buenas... something!', 'I love Spain! Everything is so... how you say... caliente!', 'Tapas! Tapas! Why is it so tiny?!', 'Fiesta! Siesta! Fiesta! Siesta! I am doing it right!', 'My hotel has a pool but I like the sea more, it has real fish!', 'Gazpacho is just cold soup. COLD SOUP!', 'Torero! Torero! Where is the bull?', 'Que pasa, tio? That is how you say it, no?', 'Oye, mi amigo, where is the toilet? El bano?', 'Adios muchachos, I am going to the chiringuito!', 'One more sangria and I will speak perfect Spanish.', 'Sorry! Sorry! Many sorries! Sorry!',
+  ];
+  const LIE_GUIRI = [
+    'Do not move, I am working on my tan. Day 4 of 14!', 'Mate, you are blocking my vitamin D!', 'Shh! I have saved this spot since 7 AM with my towel!',
+    'If you wake me up for dinner, make it a paella.', 'I am not asleep, I am just resting my eyes. And my whole body.', 'Excuse me, I paid for this sand. It was in the package!',
+    'I am from Birmingham. This is the first time I have seen the sun. Go away.', 'Darling, tell him that is our beach towel!',
+    'You are standing on my crisps, friend. Salt and vinegar. Very rare here.', 'I did not come to Spain to be stepped on by a fisherman!',
+    'Do you have sunscreen? Mine is melting with the ice cream.', 'Quiero... tumbona. Tumbona! No, hamaca? Ugh.', 'Mi cerveza, mi toalla, mi sol. Leave me alone, amigo.', 'This is the life! Ole!', 'I am on holiday! Do not disturb! No molestar!',
+  ];
+  function pickMsg(list, guiri) { return Math.random() < 0.45 ? U.pick(guiri) : U.pick(list); }
   function say(x, y, text) {
     for (let i = bubbles.length - 1; i >= 0; i--) if (Math.hypot(bubbles[i].x - x, bubbles[i].y - y) < 30) bubbles.splice(i, 1);
     bubbles.push({ x, y, text, t: 0, life: 2.7 });
@@ -65,7 +85,7 @@ G.Social = (function () {
       p.lastBump = E.t;
       shove(P, dx, dy, 11);
       p.sx = -dx / (d || 1) * 22; p.sy = -dy / (d || 1) * 22; p.st = E.t;
-      say(r.x, r.y - 16, U.pick(WALK));
+      say(r.x, r.y - 16, pickMsg(WALK, GUIRI));
     }
   }
 
@@ -78,7 +98,7 @@ G.Social = (function () {
     if (E.t - (lastTowel.get(tw) || -99) < 3) return;
     lastTowel.set(tw, E.t);
     G.Audio.play('bump'); P.kx = (P.x - tw.x) * 0.25; P.ky = (P.y - tw.y) * 0.25; P.stun = 0.25;
-    say(tw.x, tw.y - 18, U.pick(LIE));
+    say(tw.x, tw.y - 18, pickMsg(LIE, LIE_GUIRI));
   }
 
   function draw(ctx) {

@@ -7,8 +7,8 @@ window.G = window.G || {};
     v: 2, money: 25, day: 1, time: 12, swell: 1,
     phase: 'prep', gt: 0, sailor: null, stall: { slots: [], up: { ac: 0, sign: 0, side: 0 }, sold: 0 }, gems: 0, cnt: {}, ach: {}, cal: { last: '', streak: 0, best: 0, total: 0 }, trashLog: {}, look: { skin: 1, hair: 0, shirt: 'sh0', pants: 'pa0', shoes: 'so0', hat: 'ha0' }, market: { pct: 0, prev: 0 }, plan: { start: 7, dur: 12 }, elapsed: 0, dayHours: 12, cooler: 0, dayLog: { fish: 0 },
     owned: { rods: ['r0'], lines: ['l0'], hooks: ['h0'], spears: [], gear: [], extras: [], cosm: ['sh0', 'pa0', 'so0', 'ha0'] },
-    eq: { rod: 'r0', line: 'l0', hook: 'h0', spear: null, bait: 'gusano' },
-    baits: { gusano: 10, sardina: 0, cangrejo: 0 },
+    eq: { rod: 'r0', line: 'l0', hook: 'h0', spear: null, bait: 'gusano_ini' },
+    baits: { gusano_ini: 25, gusano: 0, sardina: 0, cangrejo: 0 },
     bag: [], album: {}, shopLevel: 0, milestones: [],
     stats: { casts: 0, fish: 0, earned: 0, dives: 0, trash: 0 },
     pos: { x: 700, y: 1420 }, onPaddle: false, board: null,
@@ -60,7 +60,7 @@ window.G = window.G || {};
   G.speciesCount = () => Object.keys(G.S.album).length;
 
   /* ¿Está abierta una tienda? Entre jornadas todas; en jornada solo la de pesca de 9:00 a 18:00 */
-  G.shopOpen = (kind) => G.S.phase === 'prep' || (kind === 'tackle' && G.env.hour >= 9 && G.env.hour < 18);
+  G.shopOpen = (kind) => G.S.phase === 'prep' || (['bait', 'rods', 'spear', 'paddle', 'kayak'].includes(kind) && G.env.hour >= 9 && G.env.hour < 18);
 
   /* Neveras y frescura */
   G.cooler = () => G.COOLERS[G.S.cooler] || G.COOLERS[0];

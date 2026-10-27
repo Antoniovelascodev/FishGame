@@ -108,8 +108,9 @@ G.BAITS = [
   { id: 'sardina', name: 'Sardinas', pts: 3, price: 3, pack20: 55, icon: '🐟', tier: 2, wait: 1.0, maxRar: 3, desc: 'Calidad media: picada normal, peces comunes y raros, y alguno épico.' },
   { id: 'cangrejo', name: 'Cangrejos', pts: 5, price: 8, pack20: 150, icon: '🦀', tier: 3, wait: 0.62, maxRar: 4, desc: 'Los mejores: pican enseguida y atraen a todas las especies.' },
 ];
+G.BAITS.push({ id: 'gusano_ini', name: 'Gusanos de aprendiz', pts: 2, icon: '🪱', tier: 1, wait: 1.55, maxRar: 1, starter: true, desc: 'Regalo de inicio: no caducan, no se pierden al acabar el día y no se pueden vender.' });
 G.RAR_ORDER = ['comun', 'poco', 'raro', 'epico', 'leyenda'];
-G.BAIT_INDEX = { gusano: 0, sardina: 1, cangrejo: 2 };
+G.BAIT_INDEX = { gusano_ini: 0, gusano: 0, sardina: 1, cangrejo: 2 };
 
 /* Buceo */
 G.SPEARS = [

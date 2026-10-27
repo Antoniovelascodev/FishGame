@@ -149,7 +149,7 @@ G.Fish = (function () {
     G.S.stats.casts++;
     F.emptyTries = 0;
     F.school = G.World.schoolAt(F.target.x, F.target.y, G.env.t);
-    F.barren = !F.school && Math.random() < 0.55;
+    F.barren = !F.school && Math.random() < 0.2;
     G.Audio.play('whoosh');
     G.UI.refreshHud();
   }

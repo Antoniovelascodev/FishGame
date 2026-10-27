@@ -131,7 +131,11 @@ G.World = (function () {
   const buildings = [];
   (function () {
     const named = [
-      { x: 600, w: 200, label: 'PESCA EL ANZUELO', kind: 'tackle', wall: '#f0dcb4', awn: '#d9552e' },
+      { x: 56, w: 170, label: 'EL CEBO · BÁSICOS', kind: 'bait', wall: '#e7f1df', awn: '#2f9e5b' },
+      { x: 234, w: 170, label: 'PESCA EL ANZUELO', kind: 'rods', wall: '#e4ecf7', awn: '#2d6fc4' },
+      { x: 412, w: 170, label: 'ARPÓN Y BUCEO', kind: 'spear', wall: '#f7e6d3', awn: '#e07a2b' },
+      { x: 590, w: 170, label: 'PADDLE SURF', kind: 'paddle', wall: '#def3f3', awn: '#1fb5c4' },
+      { x: 3060, w: 200, label: 'PUERTO · KAYAKS', kind: 'kayak', wall: '#dde9f2', awn: '#2a5d9e' },
       { x: 830, w: 190, label: 'LONJA · PROVEEDORES', kind: 'lonja', wall: '#e1e9ea', awn: '#2c8c6a' },
       { x: 1090, w: 190, label: 'MODA MARINERA', kind: 'fashion', wall: '#f4e1ec', awn: '#c2477e' },
       { x: 1300, w: 210, h: 150, label: 'TU PESCADERÍA', kind: 'stall', wall: '#eef3f6', awn: '#2d7fc4' },
@@ -246,7 +250,7 @@ G.World = (function () {
 
   /* ---- Cangrejos de la orilla: pocos, huyen del jugador ---- */
   const crabs = [];
-  for (let i = 0; i < 14; i++) crabs.push({ x: 140 + rngP() * 3000, off: 16 + rngP() * 58, rg: 22 + rngP() * 60, sp: 0.2 + rngP() * 0.35, ph: rngP() * 6.28, fx: 0, lt: 0, flee: 0, sc: 0.9 + rngP() * 0.4 });
+  for (let i = 0; i < 5; i++) crabs.push({ x: 140 + rngP() * 3000, off: 16 + rngP() * 58, rg: 22 + rngP() * 60, sp: 0.2 + rngP() * 0.35, ph: rngP() * 6.28, fx: 0, lt: 0, flee: 0, sc: 0.9 + rngP() * 0.4 });
   function drawCrabs(ctx, vis, env) {
     const t = env.t, P = G.P;
     for (const c of crabs) {
@@ -519,7 +523,8 @@ G.World = (function () {
       ctx.fillStyle = '#fff'; ctx.font = '700 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(b.label, x + w / 2, y + 53);
       ctx.font = '26px serif';
-      ctx.fillText(b.kind === 'fishshop' ? '🎲' : b.kind === 'tackle' ? '🎣' : b.kind === 'fashion' ? '👕' : b.kind === 'stall' ? '🐟' : '⚓', x + w / 2, y + 108);
+      ctx.fillText(({ bait: '🪱', rods: '🎣', spear: '🤿', paddle: '🏄', kayak: '🛶', fashion: '👕', stall: '🐟' })[b.kind] || '⚓', x + w / 2, y + 108);
+      drawStand(ctx, b, x, y, w);
       const open = G.shopOpen(b.kind);
       ctx.font = '700 10px system-ui'; ctx.fillStyle = open ? '#2fbf7a' : '#e0584a';
       ctx.fillText(open ? 'ABIERTO' : 'CERRADO', x + w / 2, y + 78);
@@ -528,6 +533,26 @@ G.World = (function () {
         ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.moveTo(x + w / 2 - 9, y - 40 + bob); ctx.lineTo(x + w / 2 + 9, y - 40 + bob); ctx.lineTo(x + w / 2, y - 24 + bob); ctx.closePath(); ctx.fill();
       }
     }
+  }
+
+  /* Puesto delante de cada tienda para reconocerla de lejos */
+  function drawStand(ctx, b, x, y, w) {
+    const L = x + w * 0.2, R = x + w * 0.8, yy = y - 34;
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const crate = (cx) => { ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(cx - 16, yy + 18, 34, 5); ctx.fillStyle = '#8f6035'; ctx.fillRect(cx - 16, yy + 6, 32, 15); ctx.fillStyle = '#b98450'; ctx.fillRect(cx - 16, yy + 6, 32, 4); };
+    const em = (e, cx, dy, sz) => { ctx.font = (sz || 16) + 'px serif'; ctx.fillStyle = '#000'; ctx.fillText(e, cx, yy + dy); };
+    if (b.kind === 'bait') { crate(L); crate(R); em('🪱', L - 6, 5); em('🦀', L + 8, 5); em('🐟', R - 6, 5); em('🧊', R + 8, 5); }
+    else if (b.kind === 'rods') {
+      for (const cx of [L, R]) { ctx.fillStyle = '#6b4a2b'; ctx.fillRect(cx - 14, yy + 17, 28, 4); ctx.lineCap = 'round'; for (let i = 0; i < 4; i++) { ctx.strokeStyle = ['#5a3b22', '#2d6fc4', '#c9a24a', '#2a2a2a'][i]; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 12 + i * 8, yy + 18); ctx.lineTo(cx - 9 + i * 8, yy - 10); ctx.stroke(); } }
+    } else if (b.kind === 'spear') {
+      for (const cx of [L, R]) { ctx.fillStyle = '#4a4a50'; ctx.fillRect(cx - 14, yy + 17, 28, 4); for (let i = 0; i < 4; i++) { ctx.strokeStyle = '#8c929a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 12 + i * 8, yy + 18); ctx.lineTo(cx - 11 + i * 8, yy - 12); ctx.stroke(); ctx.fillStyle = '#d9dde3'; ctx.fillRect(cx - 13 + i * 8, yy - 15, 3, 5); } }
+      em('🤿', L + 22, 8, 14); em('🥽', R - 22, 8, 14);
+    } else if (b.kind === 'paddle') {
+      for (const cx of [L, R]) for (let i = 0; i < 3; i++) { ctx.fillStyle = ['#f7f4ea', '#2bb5c9', '#f0a040'][(i + (cx === R ? 1 : 0)) % 3]; ctx.beginPath(); ctx.ellipse(cx - 12 + i * 12, yy + 4, 5, 20, 0.12 * (i - 1), 0, 6.3); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1; ctx.stroke(); }
+    } else if (b.kind === 'kayak') {
+      em('🛶', L, 6, 22); em('⚓', R, 6, 20);
+    }
+    ctx.restore();
   }
 
   function drawLand(ctx, vis, env) {

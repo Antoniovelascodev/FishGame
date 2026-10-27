@@ -125,6 +125,7 @@ G.UI = (function () {
     open(type, tab);
   };
   UI.close = close;
+  UI.openShop = function (kind) { UI.open('shop', SHOPS[kind].tabs[0][0]); if (ms && ms.type === 'shop') { ms.shop = kind; render(); } };
   UI.panels = {};          // paneles extra registrados por otros módulos
   UI.render = () => render();
   UI.getMs = () => ms;
@@ -136,13 +137,19 @@ G.UI = (function () {
     inv: [['capturas', '🐟 Capturas'], ['equipo', '🎣 Equipo'], ['cebos', '🪱 Cebos'], ['album', '📖 Álbum']],
     shop: [['canas', 'Cañas'], ['hilos', 'Hilos'], ['anzuelos', 'Anzuelos'], ['cebos', 'Cebos'], ['neveras', '🧊 Neveras'], ['buceo', 'Buceo'], ['extras', 'Extras']],
   };
+  const SHOPS = {
+    bait: { title: 'El Cebo · Básicos', tabs: [['cebos', '🪱 Cebos'], ['neveras', '🧊 Neveras'], ['extras', '🔦 Extras']], extras: ['lampara'] },
+    rods: { title: 'Pesca El Anzuelo', tabs: [['canas', 'Cañas'], ['hilos', 'Hilos'], ['anzuelos', 'Anzuelos']], extras: [] },
+    spear: { title: 'Arpón y Buceo', tabs: [['buceo', '🤿 Buceo y arpones']], extras: [] },
+    paddle: { title: 'Paddle Surf', tabs: [['extras', '🏄 Tablas']], extras: ['paddle'] },
+  };
   const TITLES = { inv: 'Inventario', shop: 'Pesca El Anzuelo', lonja: 'Lonja · Proveedores', plan: 'Preparar la jornada', map: 'Mapa de Málaga', menu: 'Ajustes' };
 
   function render() {
     if (!ms) return;
     if (ms.type === 'catch' || ms.type === 'msg') return;
     const PN = UI.panels[ms.type];
-    const tabs = TABS[ms.type] || (PN && PN.tabs && PN.tabs(ms));
+    const tabs = ms.type === 'shop' ? SHOPS[ms.shop || 'rods'].tabs : (TABS[ms.type] || (PN && PN.tabs && PN.tabs(ms)));
     if (tabs && !ms.tab) ms.tab = tabs[0][0];
     let body = '';
     if (ms.type === 'inv') body = invBody();
@@ -155,7 +162,7 @@ G.UI = (function () {
     modal.className = '';
     const prev = modal.querySelector('.body');
     const sc = prev ? prev.scrollTop : 0;
-    modal.innerHTML = `<div class="sheet"><header><h2>${TITLES[ms.type] || (PN ? PN.title(ms) : '')}</h2><div style="display:flex;gap:8px;align-items:center"><span class="pill small">💶 ${U.money(G.S.money)}</span><span class="pill small">💎 ${G.S.gems || 0}</span><button class="x" data-act="close">✕</button></div></header>
+    modal.innerHTML = `<div class="sheet"><header><h2>${ms.type === 'shop' ? SHOPS[ms.shop || 'rods'].title : (TITLES[ms.type] || (PN ? PN.title(ms) : ''))}</h2><div style="display:flex;gap:8px;align-items:center"><span class="pill small">💶 ${U.money(G.S.money)}</span><span class="pill small">💎 ${G.S.gems || 0}</span><button class="x" data-act="close">✕</button></div></header>
       ${tabs ? `<div class="tabs">${tabs.map(t => `<button class="tab ${ms.tab === t[0] ? 'on' : ''}" data-act="tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>` : ''}
       <div class="body">${body}</div></div>`;
     if (PN && PN.after) PN.after(modal, ms);
@@ -272,7 +279,7 @@ G.UI = (function () {
     if (t === 'canas') return `<p class="ds" style="color:var(--mut)">Más alcance = llegas a fondos y peces más lejanos (hasta las boyas, a 200 m).</p>` + list(G.RODS, S.owned.rods, 'rods', x => `Alcance ${x.reach} m · +${x.pts} pts · aguanta ${x.cap} kg`, 'rod');
     if (t === 'hilos') return `<p class="ds" style="color:var(--mut)">Un hilo mejor suma puntos y aguanta mejor los tirones.</p>` + list(G.LINES, S.owned.lines, 'lines', x => `+${x.pts} pts · aguanta ${Math.round(100 / x.tension)}% · hasta ${x.cap} kg`, 'line');
     if (t === 'anzuelos') return `<p class="ds" style="color:var(--mut)"><b>Cuanto MENOR es el número del anzuelo, MAYOR es el pez que coge.</b> El nº 12 es para peces pequeños y el nº 1 para los más grandes. Puedes cambiar de anzuelo en Inventario → Equipo.</p>` + list(G.HOOKS, S.owned.hooks, 'hooks', x => `+${x.pts} pts · peces de ${hookRange(x)}`, 'hook');
-    if (t === 'cebos') return `<p class="ds" style="color:var(--mut)">El cebo se estropea al terminar el día: compra solo lo que vayas a usar. Mejor cebo = pica antes y atrae mejores peces.</p>` + G.BAITS.map(b => `<div class="item"><div style="font-size:34px">${b.icon}</div><div class="meta"><div class="nm">${b.name} <span class="ds">(tienes ${S.baits[b.id] || 0})</span></div><div class="ds">${b.desc} +${b.pts} pts</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="5" ${can(b.price * 5) ? '' : 'disabled'}>5 · ${U.money(b.price * 5)}</button><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="20" ${can(b.pack20) ? '' : 'disabled'}>20 · ${U.money(b.pack20)}</button></div></div>`).join('');
+    if (t === 'cebos') return `<p class="ds" style="color:var(--mut)">El cebo se estropea al terminar el día: compra solo lo que vayas a usar. Mejor cebo = pica antes y atrae mejores peces.</p>` + G.BAITS.filter(b => !b.starter).map(b => `<div class="item"><div style="font-size:34px">${b.icon}</div><div class="meta"><div class="nm">${b.name} <span class="ds">(tienes ${S.baits[b.id] || 0})</span></div><div class="ds">${b.desc} +${b.pts} pts</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="5" ${can(b.price * 5) ? '' : 'disabled'}>5 · ${U.money(b.price * 5)}</button><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="20" ${can(b.pack20) ? '' : 'disabled'}>20 · ${U.money(b.pack20)}</button></div></div>`).join('');
     if (t === 'neveras') return `<p class="ds" style="color:var(--mut)">Aquí guardas lo que pescas hasta venderlo. Las mejores neveras caben más peces y los mantienen frescos más tiempo.</p>` + G.COOLERS.map((c, i) => {
       const owned = i <= S.cooler;
       return `<div class="item ${i === S.cooler ? 'on' : ''}"><div style="font-size:30px">🧊</div><div class="meta"><div class="nm">${c.name}</div><div class="ds">Caben ${c.cap} peces · pierden ${c.loss}% de frescura por hora</div></div>${c.gems ? (owned ? '<button class="btn sm ghost" disabled>Tuya</button>' : `<button class="btn sm" style="background:linear-gradient(160deg,#8a5cf0,#5a35c0)" data-act="buycooler" data-v="${i}" ${S.gems >= c.gems ? '' : 'disabled'}>💎 ${c.gems}</button>`) : priceBtn(c.price, owned, can(c.price), 'buycooler', `data-v="${i}"`)}</div>`;
@@ -283,7 +290,7 @@ G.UI = (function () {
       h += `<div class="sec">Arpones</div>` + list(G.SPEARS, S.owned.spears, 'spears', x => `+${x.pts} pts · alcance ${x.range} m`, 'spear');
       return h;
     }
-    if (t === 'extras') return G.EXTRAS.map(g => `<div class="item"><div style="font-size:34px">${g.icon}</div><div class="meta"><div class="nm">${g.name}</div><div class="ds">${g.desc}</div></div>${priceBtn(g.price, S.owned.extras.includes(g.id), can(g.price), 'buy', `data-k="extras" data-v="${g.id}"`)}</div>`).join('');
+    if (t === 'extras') return G.EXTRAS.filter(g => (SHOPS[ms.shop || 'rods'].extras || []).includes(g.id)).map(g => `<div class="item"><div style="font-size:34px">${g.icon}</div><div class="meta"><div class="nm">${g.name}</div><div class="ds">${g.desc}</div></div>${priceBtn(g.price, S.owned.extras.includes(g.id), can(g.price), 'buy', `data-k="extras" data-v="${g.id}"`)}</div>`).join('');
     return '';
   }
 
@@ -330,7 +337,7 @@ G.UI = (function () {
         <div class="ds" id="pNight" style="color:var(--mut)">${sm.night ? '🌙 Incluye noche: sin la lámpara de pesca verás muy poco.' : '☀️ Jornada de día.'}</div>
       </div>
       ${(() => { const q = G.Sailor.quest(), sp = G.SPECIES_BY_ID[q.sp]; return `<div class="item"><div style="font-size:30px">⚓</div><div class="meta"><div class="nm">Encargo del marinero</div><div class="ds">${q.done ? 'Hoy ya lo has cumplido ✅' : sp.name + ' de al menos ' + q.cm + ' cm y ' + U.kg(q.kg) + ' → ' + (q.type === 'gems' ? '💎 ' + q.amt : U.money(q.amt))}</div></div></div>`; })()}
-      <div class="item"><div style="font-size:30px">🪱</div><div class="meta"><div class="nm">Cebos: ${nb}</div><div class="ds">${nb ? 'Se estropean al acabar el día.' : 'No llevas cebo. Compra en Pesca El Anzuelo.'}</div></div></div>
+      <div class="item"><div style="font-size:30px">🪱</div><div class="meta"><div class="nm">Cebos: ${nb}</div><div class="ds">${nb ? 'Se estropean al acabar el día.' : 'No llevas cebo. Compra en El Cebo.'}</div></div></div>
       <div class="item"><div style="font-size:30px">🧊</div><div class="meta"><div class="nm">${G.cooler().name}: ${S.bag.length}/${G.coolerCap()}</div><div class="ds">${S.bag.length ? 'Aún llevas pescado sin vender: se seguirá estropeando.' : 'Vacía y lista.'}</div></div></div>
       <button class="btn primary" style="width:100%;margin-top:6px" data-act="startday">▶ Empezar jornada</button>
       <p class="ds" style="color:var(--mut);text-align:center">Los peces solo se pueden vender al terminar la jornada.</p>`;
