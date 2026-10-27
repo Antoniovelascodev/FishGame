@@ -163,6 +163,11 @@ window.G = window.G || {};
     sp.modes = m.length ? m : o.slice();
   }
 
+  /* Especies protegidas: soltarlas es lo correcto; quedártelas arriesga una multa */
+  ['pulpo', 'mero', 'gitano', 'corvallo', 'caballito', 'pipa', 'anguila', 'angula', 'cigarra', 'langosta', 'atun', 'blanco', 'martillo', 'mantarraya', 'marrajo', 'tintorera'].forEach(id => { if (G.SPECIES_BY_ID[id]) G.SPECIES_BY_ID[id].prot = true; });
+  G.PROT_FINE = 5;      // la multa es 5 veces el valor del pez
+  G.PROT_CHANCE = 0.5;  // probabilidad de que te pille la policía
+
   /* Basura que a veces se engancha al sedal */
   G.TRASH = [
     { id: 'lata', name: 'Lata de bebida', desc: 'Una lata de aluminio puede tardar siglos en desaparecer del mar y sus bordes cortan a los animales.' },

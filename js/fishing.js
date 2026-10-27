@@ -179,6 +179,7 @@ G.Fish = (function () {
     for (const r of F.rings) r.t += dt;
     F.rings = F.rings.filter(r => r.t < r.life);
     const st = F.state;
+    if ((st === 'wait' || st === 'nibble' || st === 'bite') && G.World.swimmerAt(F.target.x, F.target.y, G.env.t, G.env.hour)) { hookSwimmer(); return; }
     if (st === 'charge') {
       F.chargeT += dt;
       F.power = 0.5 - 0.5 * Math.cos(F.chargeT * Math.PI * 2 / 1.7);
@@ -291,6 +292,17 @@ G.Fish = (function () {
     else if (f.prog <= 0) { endFight(false, 'escape'); }
   }
 
+  /* El flotador toca a un bañista: se engancha, corta el hilo y se acaba la pesca */
+  const SWIM_LINES = ['¡Eh, cabrón, que me has enganchao!', '¡Quita el hilo, animal, que estoy nadando!', '¡Cabrón, que me has pescao a mí! ¡Suelta!', '¡Oye, tú! ¡Que me has clavado el anzuelo en el bañador!'];
+  function hookSwimmer() {
+    F.state = 'result'; F.rings.length = 0; F.cur = null; G.UI.fishHud(null);
+    G.Audio.play('snap'); if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch (e) { }
+    G.S.stats.bathers = (G.S.stats.bathers || 0) + 1;
+    G.UI.showMsg('🏊 ¡Has enganchado a un bañista!',
+      '<div style="background:#fff;color:#1b2a3a;border-radius:16px;padding:10px 14px;font-weight:800;margin:8px 0;line-height:1.3">🗯️ «' + U.pick(SWIM_LINES) + '»</div>Cortas el hilo para soltarlo: pierdes el cebo y dejas de pescar. Lanza lejos de los bañistas.',
+      () => { F.state = 'idle'; F.cur = null; });
+  }
+
   /* A veces lo que pica es basura: lata, botella, vaper o bolsa */
   function hookTrash() {
     const it = U.pick(G.TRASH);
@@ -326,9 +338,6 @@ G.Fish = (function () {
     const isRecord = rec && (catchObj.kg > rec.maxKg);
     catchObj.fresh = 100;
     if (Math.random() < 0.125) { catchObj.fresh = Math.round(U.rand(50, 70)); catchObj.hurt = U.pick(['Mordido por otro pez', 'Herido en la lucha', 'Con la piel dañada', 'Mordisqueado por cangrejos']); }
-    const full = G.S.bag.length >= G.coolerCap();
-    if (!full) G.S.bag.push(catchObj);
-    G.S.dayLog.fish++;
     if (isNew) G.S.album[sp.id] = { n: 1, maxCm: catchObj.cm, maxKg: catchObj.kg, day: G.S.day };
     else { rec.n++; rec.maxCm = Math.max(rec.maxCm, catchObj.cm); rec.maxKg = Math.max(rec.maxKg, catchObj.kg); }
     G.S.stats.fish++;
@@ -339,7 +348,28 @@ G.Fish = (function () {
     G.save();
     G.UI.refreshHud();
     const fin = () => { if (!source) { F.state = 'idle'; F.cur = null; } };
-    G.UI.showCatch(catchObj, { isNew, isRecord, bonus, n }, () => { if (full) G.UI.showSwap(catchObj, fin); else fin(); });
+    const full = G.S.bag.length >= G.coolerCap();
+    G.UI.showCatch(catchObj, { isNew, isRecord, bonus, n, full }, (keep, rect) => {
+      // 1) devolverla al mar
+      if (!keep) {
+        G.S.stats.released = (G.S.stats.released || 0) + 1;
+        G.UI.flyFish(sp, rect, 'sea'); G.UI.toast('Devuelves ' + sp.name.toLowerCase() + ' al mar 🌊', sp.prot ? 'good' : '');
+        G.save(); return fin();
+      }
+      // 2) especie protegida: la policía puede verte al instante
+      if (sp.prot) {
+        if (Math.random() < G.PROT_CHANCE) {
+          const fine = Math.round(catchObj.value * G.PROT_FINE * 100) / 100, paid = Math.min(fine, G.S.money);
+          G.S.money = Math.round((G.S.money - paid) * 100) / 100; G.S.stats.fines = (G.S.stats.fines || 0) + 1; G.Audio.play('snap'); G.save(); G.UI.refreshHud();
+          return G.UI.showMsg('🚔 ¡Sanción de la policía!', 'Una patrulla te ha visto con ' + sp.name.toLowerCase() + ', una especie protegida. Te lo confiscan y te multan con ' + G.U.money(paid) + ' (' + G.PROT_FINE + ' veces su valor)' + (paid < fine ? ', todo lo que llevabas encima' : '') + '.', fin);
+        }
+        G.UI.toast('Nadie te ha visto… esta vez 😅', 'warn');
+      }
+      // 3) guardarla en la nevera (o elegir qué soltar si está llena)
+      G.S.dayLog.fish++;
+      if (full) return G.UI.showSwap(catchObj, fin, rect);
+      G.S.bag.push(catchObj); G.save(); G.UI.flyFish(sp, rect, 'cooler'); fin();
+    });
   };
 
   /* ---- Dibujo ---- */

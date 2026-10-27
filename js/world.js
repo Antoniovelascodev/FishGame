@@ -138,12 +138,21 @@ G.World = (function () {
   const gulls = [];
   for (let i = 0; i < 7; i++) gulls.push({ cx: 400 + rng() * 2600, cy: 500 + rng() * 800, rx: 120 + rng() * 260, ry: 50 + rng() * 120, sp: 0.15 + rng() * 0.2, ph: rng() * 6 });
   const swimmers = [];
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 30; i++) {
     const x = 160 + rng() * 2900;
     if (x > 880 && x < 1700) continue;
     swimmers.push({ x, d: 5 + rng() * 14, ph: rng() * 6, c: U.pick(['#f2c9a0', '#d9a074', '#f0b88a']), cap: U.pick(umbCols) });
   }
   for (const s of swimmers) { s.arr = 9.2 + rng() * 1.5; s.lv = 19.3 + rng() * 0.5; }
+  /* ¿hay un bañista justo en este punto del agua? (para cuando el flotador lo toca) */
+  function swimmerAt(px, py, t, hour) {
+    for (const s of swimmers) {
+      if (hour < s.arr || hour > s.lv || Math.abs(px - s.x) > 40) continue;
+      const x = s.x + Math.sin(t * 0.4 + s.ph) * 20, y = shoreY(s.x) - s.d * PXM + Math.sin(t * 1.3 + s.ph) * 3;
+      if (Math.hypot(px - x, py - y) < 17) return { x, y };
+    }
+    return null;
+  }
   const cars = [{ x: 200, s: 90, c: '#d0453a' }, { x: 1400, s: -70, c: '#3a6fd0' }, { x: 2300, s: 110, c: '#e8e8e8' }, { x: 3000, s: -100, c: '#f2b632' }];
   const boats = [];
   for (let i = 0; i < 9; i++) boats.push({ x: 3380 + (i % 3) * 230 + rng() * 40, y: 780 + Math.floor(i / 3) * 90 + rng() * 20, a: rng() * 0.4 - 0.2, c: U.pick(['#ffffff', '#f4efe2', '#e7f1f5']), s: 0.9 + rng() * 0.5 });
@@ -226,12 +235,14 @@ G.World = (function () {
   }
   function spawnSchool(s, t, first) {
     for (let tries = 0; tries < 12; tries++) {
-      const x = 140 + Math.random() * 3000, depth = 5 + Math.pow(Math.random(), 1.5) * 85;
+      // el banco entero queda lejos de la arena: su borde más cercano a la orilla está a >= 8 m
+      const rad = 30 + Math.random() * 30, minD = (rad * 0.75 + 58) / PXM;
+      const x = 140 + Math.random() * 3000, depth = minD + Math.pow(Math.random(), 1.5) * (90 - minD);
       const y = shoreY(x) - depth * PXM;
       if (inPier(x, y, 30) || y < G.BUOY_Y + 30) continue;
       const sp = pickSchoolSpecies(x, y);
       if (!sp) continue;
-      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = 30 + Math.random() * 30; s.n = 3 + ((Math.random() * 5) | 0);
+      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 3 + ((Math.random() * 5) | 0);
       s.life = 45 + Math.random() * 80; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
       return;
     }
@@ -696,7 +707,7 @@ G.World = (function () {
   function fishingLights() { return lamps; }
 
   return {
-    PIER, DIVE, PADDLE_SPAWN, PREP_SPAWN, SPOTS, freeSpot, updateSchools, schoolAt, PROM_Y1, PORT_FENCE_X, buildings,
+    PIER, DIVE, PADDLE_SPAWN, PREP_SPAWN, SPOTS, freeSpot, updateSchools, schoolAt, swimmerAt, PROM_Y1, PORT_FENCE_X, buildings,
     shoreY, depthAt, habitatAt, canWalk, canPaddle, inPier,
     drawSea, drawLand, drawBuoys, drawTall, fishingLights,
     lamps,

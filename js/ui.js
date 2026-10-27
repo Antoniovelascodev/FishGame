@@ -210,7 +210,7 @@ G.UI = (function () {
       const bi = sp.bait.indexOf(Math.max(...sp.bait));
       return `<button class="btn sm ghost" data-act="back">← Volver</button>
         <div style="text-align:center;margin:10px 0">${fishPh(sp.id, 220)}<div style="font-size:24px;font-weight:900">${sp.name}</div><div class="ds" style="font-style:italic;color:var(--mut)">${sp.sci}</div>${rarChip(sp.rar)}</div>
-        <div class="item"><div class="meta"><div class="ds">Dato curioso</div><div class="nm" style="font-weight:600;font-size:14px;line-height:1.4">${sp.desc || ''}</div></div></div>
+        <div class="item"><div class="meta"><div class="ds">Dato curioso${sp.prot ? ' · 🛡️ especie protegida' : ''}</div><div class="nm" style="font-weight:600;font-size:14px;line-height:1.4">${sp.desc || ''}</div></div></div>
         <div class="item"><div class="meta"><div class="ds">Hábitat</div><div class="nm">${habs}</div></div></div>
         <div class="item"><div class="meta"><div class="ds">Profundidad / distancia</div><div class="nm">${sp.dmin}–${sp.dmax} m desde la orilla</div></div></div>
         <div class="item"><div class="meta"><div class="ds">Cuándo</div><div class="nm">${when}</div></div></div>
@@ -460,9 +460,13 @@ G.UI = (function () {
     if (act === 'mk_more') { ms.mk.stage = 'guess'; ms.mk.last = 'Sigue en el ' + ms.mk.die + '. ¿Mayor o menor?'; return render(); }
     if (act === 'mk_sell') return mkSell();
     if (act === 'swapout') {
-      const c = ms.c, done = ms.done;
-      if (d.v === 'NEW') UI.toast('Devuelves ' + G.SPECIES_BY_ID[c.sp].name.toLowerCase() + ' al mar 🌊');
-      else { const i = S.bag.findIndex(f => f.id === d.v); if (i >= 0) { UI.toast('Sueltas ' + G.SPECIES_BY_ID[S.bag[i].sp].name.toLowerCase() + ' 🌊'); S.bag.splice(i, 1); S.bag.push(c); } }
+      const c = ms.c, done = ms.done, ms0 = ms;
+      const rowRect = UI._lastEl && UI._lastEl.closest('.item') ? UI._lastEl.closest('.item').getBoundingClientRect() : null;
+      if (d.v === 'NEW') { UI.toast('Devuelves ' + G.SPECIES_BY_ID[c.sp].name.toLowerCase() + ' al mar 🌊'); UI.flyFish(G.SPECIES_BY_ID[c.sp], ms.rect || rowRect, 'sea'); }
+      else {
+        const i = S.bag.findIndex(f => f.id === d.v);
+        if (i >= 0) { UI.toast('Sueltas ' + G.SPECIES_BY_ID[S.bag[i].sp].name.toLowerCase() + ' 🌊'); UI.flyFish(G.SPECIES_BY_ID[S.bag[i].sp], rowRect, 'sea'); S.bag.splice(i, 1); S.bag.push(c); setTimeout(() => UI.flyFish(G.SPECIES_BY_ID[c.sp], ms0 && ms0.rect, 'cooler'), 250); }
+      }
       ms = null; modal.innerHTML = ''; modal.className = 'hidden'; UI.refreshHud(); G.save(); done && done(); return;
     }
     if (act === 'sell') {
@@ -488,7 +492,7 @@ G.UI = (function () {
   }
   modal.addEventListener('click', (e) => {
     const t = e.target.closest('[data-act]');
-    if (t) { handle(t.dataset.act, t.dataset); return; }
+    if (t) { UI._lastEl = t; handle(t.dataset.act, t.dataset); return; }
     if (e.target === modal && ms && ms.type !== 'catch' && ms.type !== 'msg' && ms.type !== 'swap') close();
   });
 
@@ -500,14 +504,16 @@ G.UI = (function () {
     modal.innerHTML = `<div class="catchcard" style="box-shadow:0 0 40px ${col}55"><div class="shine"></div>
       <div style="position:relative"><div class="ds" style="color:${col};font-weight:900;letter-spacing:1px;text-transform:uppercase">${G.RARITY[sp.rar].name}</div>
       <div id="cfish" style="margin:6px 0"></div>
-      <h3>${sp.name}</h3><div class="sci">${sp.sci}</div><div style="margin:6px 2px 2px;font-size:12.5px;line-height:1.35;color:var(--mut)">${sp.desc || ''}</div>
+      <h3>${sp.name}</h3><div class="sci">${sp.sci}</div>${sp.prot ? '<div style="margin-top:4px"><span class="badge new" style="background:#2e7d5b">🛡️ Especie protegida</span></div>' : ''}<div style="margin:6px 2px 2px;font-size:12.5px;line-height:1.35;color:var(--mut)">${sp.desc || ''}</div>
       <div class="stats"><div><b>${c.cm} cm</b><span>TAMAÑO</span></div><div><b>${U.kg(c.kg)}</b><span>PESO</span></div><div><b>${U.money(G.fishValue(c))}</b><span>VALOR</span></div></div>
       <div>${flags.isNew ? '<span class="badge new">⭐ ¡NUEVA ESPECIE!</span>' : ''}${flags.isRecord ? '<span class="badge rec">🏆 ¡Récord!</span>' : ''}${c.hurt ? `<span class="badge rec" style="background:#b0413a">🩹 ${c.hurt} · ${Math.round(c.fresh)}% fresco</span>` : ''}${flags.bonus ? `<span class="badge new">🎁 Premio +${U.money(flags.bonus)}</span>` : ''}</div>
       ${flags.isNew ? `<div class="ds" style="color:var(--mut);margin-top:6px">${flags.n}/${G.SPECIES.length} especies</div>` : ''}
-      <button class="btn primary" style="margin-top:14px" id="cok">¡Genial!</button></div></div>`;
+      ${sp.prot ? `<div class="ds" style="margin-top:8px;color:#ffb27a;font-weight:700">🛡️ Protegida: si te la quedas hay un ${Math.round(G.PROT_CHANCE * 100)}% de multa de ${U.money(c.value * G.PROT_FINE)}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn ghost" style="flex:1" id="crel">🌊 Devolver al mar</button><button class="btn primary" style="flex:1.4;font-size:15px;padding:12px 10px" id="ckeep">${flags.full ? '🧊 Guardar (nevera llena)' : '🧊 Guardar en la nevera'}</button></div></div></div>`;
     modal.classList.remove('hidden');
     const big = cloneIcon(sp, 240, false); $('cfish').appendChild(big);
-    $('cok').onclick = () => { ms = null; modal.innerHTML = ''; modal.className = 'hidden'; onClose && onClose(); UI.refreshHud(); };
+    const decide = (keep) => { const rect = $('cfish').getBoundingClientRect(); ms = null; modal.innerHTML = ''; modal.className = 'hidden'; onClose && onClose(keep, rect); UI.refreshHud(); };
+    $('ckeep').onclick = () => decide(true); $('crel').onclick = () => decide(false);
   };
   UI.showTrash = function (it, onClose) {
     ms = { type: 'catch' };
@@ -529,8 +535,8 @@ G.UI = (function () {
     $('cok').onclick = () => { ms = null; modal.innerHTML = ''; modal.className = 'hidden'; onClose && onClose(); };
   };
 
-  UI.showSwap = function (c, done) {
-    ms = { type: 'swap', c, done };
+  UI.showSwap = function (c, done, rect) {
+    ms = { type: 'swap', c, done, rect };
     const S = G.S, row = (f, id, label) => {
       const sp = G.SPECIES_BY_ID[f.sp], fl = G.freshLabel(f);
       return `<div class="item">${fishPh(sp.id, 52)}<div class="meta"><div class="nm">${sp.name} ${rarChip(sp.rar)}</div><div class="ds">${f.cm} cm · ${U.kg(f.kg)} · ${U.money(G.fishValue(f))}</div><div class="ds" style="color:${fl[1]};font-weight:800">${fl[0]} ${Math.round(G.freshOf(f))}%${f.hurt ? ' · 🩹 ' + f.hurt.toLowerCase() : ''}</div></div><button class="btn sm warn" data-act="swapout" data-v="${id}">${label}</button></div>`;
@@ -541,6 +547,50 @@ G.UI = (function () {
     modal.querySelectorAll('[data-fish]').forEach(ph => { const sp = G.SPECIES_BY_ID[ph.dataset.fish]; ph.replaceWith(cloneIcon(sp, +ph.dataset.size || 56, false)); });
     modal.classList.remove('hidden');
   };
+  UI.askProtected = function (c, cb) {
+    const sp = G.SPECIES_BY_ID[c.sp], fine = Math.round(c.value * G.PROT_FINE * 100) / 100;
+    ms = { type: 'msg' };
+    modal.className = 'catch';
+    modal.innerHTML = `<div class="catchcard"><div style="position:relative"><h3>🛡️ Especie protegida</h3>
+      <p style="color:var(--mut);line-height:1.4"><b style="color:#fff">${sp.name}</b> es una especie protegida. Lo correcto es devolverla al mar.<br>Si te la quedas, hay un <b style="color:#ffb27a">${Math.round(G.PROT_CHANCE * 100)}%</b> de que la policía te vea: multa de <b style="color:#ff8a6b">${U.money(fine)}</b> (${G.PROT_FINE} veces su valor) y te la quitan.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><button class="btn" id="pkeep" style="background:linear-gradient(160deg,#e0584a,#b6382d)">🧺 Quedármela (${Math.round(G.PROT_CHANCE * 100)}% de multa)</button><button class="btn primary" style="font-size:16px;padding:12px" id="prel">🌊 Devolverla al mar</button></div></div></div>`;
+    modal.classList.remove('hidden');
+    const done = (k) => { ms = null; modal.innerHTML = ''; modal.className = 'hidden'; UI.refreshHud(); cb(k); };
+    $('prel').onclick = () => done(false); $('pkeep').onclick = () => done(true);
+  };
+  /* Animación del pez: vuela hasta la nevera del HUD, o cae de vuelta al mar */
+  UI.flyFish = function (sp, rect, kind) {
+    try {
+      rect = rect || { left: innerWidth / 2 - 60, top: innerHeight / 2 - 40, width: 120, height: 80 };
+      const el = cloneIcon(sp, 110, false); el.className = 'flyfish';
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      el.style.left = (cx - 55) + 'px'; el.style.top = (cy - 36) + 'px';
+      document.body.appendChild(el);
+      if (!el.animate) { el.remove(); return; }
+      if (kind === 'cooler') {
+        const tg = $('hCool').getBoundingClientRect(), dx = tg.left + tg.width / 2 - cx, dy = tg.top + tg.height / 2 - cy;
+        const a = el.animate([
+          { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+          { transform: 'translate(' + dx * 0.45 + 'px,' + (dy * 0.45 - 90) + 'px) scale(.75) rotate(-16deg)', opacity: 1, offset: 0.45 },
+          { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.12) rotate(12deg)', opacity: 0.9 }], { duration: 750, easing: 'cubic-bezier(.4,0,.2,1)' });
+        G.Audio.play('click');
+        let ended = false; const end = () => { if (ended) return; ended = true; el.remove(); const p = $('hCool'); p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); UI.refreshHud(); G.Audio.play('buy'); };
+        a.onfinish = end; setTimeout(end, 950);
+      } else {
+        const a = el.animate([
+          { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+          { transform: 'translate(0,-36px) scale(1.1) rotate(-22deg)', opacity: 1, offset: 0.3 },
+          { transform: 'translate(30px,240px) scale(.45) rotate(70deg)', opacity: 0 }], { duration: 700, easing: 'ease-in' });
+        let ended = false; const end = () => {
+          if (ended) return; ended = true; el.remove(); G.Audio.play('splash');
+          const sp2 = document.createElement('div'); sp2.className = 'splashfx'; sp2.textContent = '💦';
+          sp2.style.left = (cx + 10) + 'px'; sp2.style.top = (cy + 190) + 'px'; document.body.appendChild(sp2); setTimeout(() => sp2.remove(), 700);
+        };
+        a.onfinish = end; setTimeout(end, 950);
+      }
+    } catch (e) { /* animación opcional */ }
+  };
+
   UI.confirm = function (title, text, okLabel, onOk) {
     ms = { type: 'msg' };
     modal.className = 'catch';
