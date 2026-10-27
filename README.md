@@ -2,8 +2,6 @@
 
 Juego de pesca por el Mediterráneo, ambientado en Málaga y visto desde arriba. Pensado **primero para móvil** (iPhone/Android), con joystick táctil y tres botones: **Lanzar**, **Inventario** y **Tienda**.
 
-Todo el arte (texturas, peces, mapa) y el sonido se generan por código: no hay imágenes ni audios de terceros, así que no hay problemas de licencias para comercializarlo.
-
 ## Jugarlo en el iPhone (sin App Store)
 
 1. Sube la carpeta `pesca-malaga/` a cualquier hosting estático con HTTPS (GitHub Pages, Netlify Drop, Cloudflare Pages…).
@@ -51,12 +49,6 @@ js/dive.js      pesca submarina
 js/ui.js        HUD, inventario, tienda, álbum
 js/main.js      bucle, jugador, cámara, día/noche
 ```
-
-## Para publicarlo como app de pago (hoja de ruta)
-
-- Empaquetar con **Capacitor** (iOS/Android) → requiere cuenta Apple Developer (99 €/año) y un Mac (o servicio de build en la nube como Codemagic/EAS).
-- Pulir para tienda: iconos y capturas finales, política de privacidad, ajuste de balance.
-- Pendiente de tu diseño: kayak, barco, puerto desbloqueable, misiones/encargos, eventos (bancos de peces, tormentas).
 
 ## Jornadas, neveras y tiendas (v2)
 
