@@ -1,4 +1,4 @@
-# 🎣 Pesca en Málaga
+# 🎣 PescaitoGame
 
 Juego de pesca por el Mediterráneo, ambientado en Málaga y visto desde arriba. Pensado **primero para móvil** (iPhone/Android), con joystick táctil y tres botones: **Lanzar**, **Inventario** y **Tienda**.
 
