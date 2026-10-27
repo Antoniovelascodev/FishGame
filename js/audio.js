@@ -69,6 +69,13 @@ G.Audio = (function () {
     coin() { tone(988, 0.08, 0.25, 'square'); tone(1319, 0.2, 0.25, 'square', 0, 0.07); },
     click() { tone(660, 0.05, 0.12, 'triangle'); },
     buy() { tone(784, 0.1, 0.22, 'triangle'); tone(1175, 0.15, 0.22, 'triangle', 0, 0.08); },
+    gull() { tone(1500, 0.18, 0.2, 'triangle', 900); tone(1700, 0.2, 0.18, 'triangle', 1000, 0.2); tone(1400, 0.26, 0.16, 'triangle', 800, 0.45); },
+    lid() { noiseBurst(0.12, 700, 0.5); tone(150, 0.12, 0.25, 'square', 90); },
+    plop() { tone(420, 0.16, 0.3, 'sine', 160); noiseBurst(0.12, 1500, 0.25); },
+    bump() { tone(110, 0.12, 0.35, 'triangle', 70); noiseBurst(0.08, 500, 0.3); },
+    gem() { [880, 1175, 1568].forEach((f, i) => tone(f, 0.3, 0.26, 'sine', 0, i * 0.08)); },
+    pop() { tone(500, 0.08, 0.2, 'triangle', 800); },
+    engine() { tone(90, 0.45, 0.1, 'sawtooth', 70); },
     shoot() { noiseBurst(0.2, 800, 0.7); tone(200, 0.15, 0.2, 'sawtooth', 60); },
   };
 

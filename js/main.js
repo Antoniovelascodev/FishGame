@@ -39,6 +39,8 @@ window.G = window.G || {};
     G.S.elapsed += hrs;
     G.spoilBag(hrs);
     G.S.time = G.env.hour; updateNight();
+    G.S.gt = (G.S.gt || 0) + hrs;
+    G.Stall.tick(hrs);
   };
 
   /* Empieza la jornada con la hora y duración elegidas */
@@ -65,7 +67,7 @@ window.G = window.G || {};
     let lost = 0; for (const b of G.BAITS) { lost += S.baits[b.id] || 0; S.baits[b.id] = 0; }
     let fee = 0;
     let lostFish = 0;
-    if (rescue) { fee = Math.round(S.money * 50) / 100; S.money = Math.round((S.money - fee) * 100) / 100; lostFish = S.bag.length; S.bag = []; }
+    if (rescue) { G.Ach.count('rescued'); fee = Math.round(S.money * 50) / 100; S.money = Math.round((S.money - fee) * 100) / 100; lostFish = S.bag.length; S.bag = []; }
     S.phase = 'prep'; S.day++;
     S.swell = U.clamp(S.swell + U.pick([-1, 0, 0, 1, 1]), 0, 3);
     G.Audio.setSwell(S.swell);
@@ -89,12 +91,15 @@ window.G = window.G || {};
   function ctxAction() {
     if (G.Fish.busy()) return null;
     const S = G.S, p = G.P;
+    // el marinero del puerto
+    if (S.phase === 'prep' && G.Sailor.near(p)) return { label: '⚓ Hablar con el marinero', run: () => G.UI.open('sailor') };
     // tiendas físicas del paseo
     const sh = W.buildings.find(b => b.label && p.x > b.x - 6 && p.x < b.x + b.w + 6 && p.y > W.PROM_Y1 - 120);
     if (sh) {
-      if (S.phase !== 'prep') return { label: '🔒 Cerrado hasta terminar el día', run: () => G.UI.toast('Las tiendas abren cuando termina la jornada', 'warn') };
+      if (!G.shopOpen(sh.kind)) return { label: '🔒 Cerrado', run: () => G.UI.toast(sh.kind === 'tackle' ? 'La tienda de pesca abre de 9:00 a 18:00' : 'Las tiendas abren cuando termina la jornada', 'warn') };
       if (sh.kind === 'tackle') return { label: '🎣 Entrar: Pesca El Anzuelo', run: () => G.UI.open('shop') };
-      if (sh.kind === 'fishshop') return { label: '🎲 Entrar: Mercadillo', run: () => G.UI.open('market') };
+      if (sh.kind === 'fashion') return { label: '👕 Entrar: Moda Marinera', run: () => G.UI.open('fashion') };
+      if (sh.kind === 'stall') return { label: '🏪 Entrar: Tu pescadería', run: () => G.UI.open('stall') };
       return { label: '🚚 Entrar: Lonja', run: () => G.UI.open('lonja') };
     }
     if (S.phase !== 'day') return null;
@@ -129,7 +134,7 @@ window.G = window.G || {};
   };
 
   /* ---------- Actualización ---------- */
-  let tutorialMark = 0;
+  let tutorialMark = 0, achT = 0;
   function update(dt) {
     const E = G.env, S = G.S, P = G.P, I = G.Input;
     E.t += dt;
@@ -146,23 +151,31 @@ window.G = window.G || {};
       if (!dayWarned && left <= 1 && left > 0) { dayWarned = true; G.UI.toast('⏳ Queda 1 hora de jornada'); }
       if (left <= 0 && !G.Fish.locked() && !G.Dive.active) {
         if (G.Fish.state !== 'idle') G.Fish.retrieve(true);
-        endDay(false); return;
+        G.UI.choose('⏰ Se acabó el tiempo', 'Has pescado ' + S.dayLog.fish + ' peces. ¿Quieres terminar la jornada para vender o seguir pescando sin perder el ritmo?', [
+          ['🎣 Seguir jornada (+12 h)', () => { S.dayHours += 12; dayWarned = false; G.UI.toast('Sigues pescando 12 horas más', 'good'); }],
+          ['🏁 Terminar y vender', () => endDay(false)],
+        ]);
+        return;
       }
     }
     W.updateSchools(E.t, G.Fish.state !== 'idle' ? G.Fish.target : null);
     G.UI.syncDayButton();
 
     I.update();
+    if (P.act) G.Char.actUpdate(dt);
     const st = G.Fish.state;
     const locked = G.Fish.locked();
     if ((st === 'wait' || st === 'nibble') && I.mag > 0.6) G.Fish.retrieve(st === 'wait');
     P.moving = false;
-    if (!locked && G.Fish.state !== 'wait' && G.Fish.state !== 'nibble' && I.mag > 0) {
+    if (P.stun > 0) P.stun -= dt;
+    if (!P.act && !(P.stun > 0) && !locked && G.Fish.state !== 'wait' && G.Fish.state !== 'nibble' && I.mag > 0) {
       const sp = (S.onPaddle ? 150 : 175) * I.mag;
       const nx = P.x + I.x * sp * dt, ny = P.y + I.y * sp * dt;
       const ok = (x, y) => S.onPaddle ? W.canPaddle(x, y) : W.canWalk(x, y, S.swell);
-      if (ok(nx, P.y)) P.x = nx;
-      if (ok(P.x, ny)) P.y = ny;
+      const okx = ok(nx, P.y), oky = ok(P.x, ny);
+      if (okx) P.x = nx;
+      if (oky) P.y = ny;
+      if (!okx || !oky) G.Social.blocked(!okx ? nx : P.x, !oky ? ny : P.y);
       P.ang = Math.atan2(I.y, I.x); P.moving = true; P.walk += dt * 10 * I.mag;
     } else if ((st === 'wait' || st === 'nibble')) {
       // mirando al corcho
@@ -170,6 +183,10 @@ window.G = window.G || {};
     }
     // que la tabla no quede varada en tierra al cambiar de sitio
     G.Fish.update(dt);
+
+    G.Social.update(dt);
+    G.Sailor.update(dt);
+    G.Stall.update(dt);
 
     // contexto
     const c = ctxAction();
@@ -194,15 +211,16 @@ window.G = window.G || {};
     if (S.tutorial === 2 && G.Fish.state === 'fight') { S.tutorial = 3; G.UI.toast('Mantén 🌀 RECOGE. Si el pez tira (⚠️), ¡suelta!', 'good'); }
 
     // refresco ligero del HUD
-    tutorialMark += dt;
+    tutorialMark += dt; achT += dt;
     if (tutorialMark > 0.5) { tutorialMark = 0; G.UI.refreshHud(); }
+    if (achT > 2) { achT = 0; G.Ach.check(); }
   }
 
   /* ---------- Dibujo ---------- */
   function drawPlayer(c) {
-    const S = G.S, P = G.P, F = G.Fish;
-    const t = G.env.t;
-    c.save(); c.translate(P.x, P.y);
+    const S = G.S, P = G.P, F = G.Fish, t = G.env.t;
+    const L = G.Char.lookOf(), act = P.act;
+    c.save(); c.translate(P.x + (P.kx || 0), P.y + (P.ky || 0));
     if (S.onPaddle) {
       c.save(); c.rotate(P.ang);
       const bob = Math.sin(t * 2) * 0.6;
@@ -211,36 +229,29 @@ window.G = window.G || {};
       c.strokeStyle = '#2bb5c9'; c.lineWidth = 4; c.beginPath(); c.moveTo(42, 0); c.lineTo(-38, 0); c.stroke();
       c.fillStyle = 'rgba(0,0,0,0.12)'; c.fillRect(-10, -9, 22, 18);
       c.restore();
-    } else {
-      c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(3, 6, 13, 10, 0, 0, 6.3); c.fill();
-      // pies
-      c.save(); c.rotate(P.ang);
-      const sw = P.moving ? Math.sin(P.walk) * 6 : 0;
-      c.fillStyle = '#2d3a4a'; c.beginPath(); c.ellipse(sw, -5, 6, 3.5, 0, 0, 6.3); c.ellipse(-sw, 5, 6, 3.5, 0, 0, 6.3); c.fill();
-      c.restore();
     }
+    c.scale(G.PS, G.PS);
+    if (!S.onPaddle) { c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(3, 6, 15, 12, 0, 0, 6.3); c.fill(); }
+    G.Char.legs(c, L, { ang: P.ang, walk: P.walk, moving: P.moving && !act, seated: S.onPaddle });
     // caña
     const aim = (F.state === 'idle' || F.state === 'result') ? P.ang : F.aim;
     const dx = Math.cos(aim), dy = Math.sin(aim);
-    const bend = F.state === 'fight' ? U.clamp(F.fight.tens / 100, 0, 1) * 10 : 0;
-    c.lineCap = 'round';
-    c.strokeStyle = '#5a3b22'; c.lineWidth = 3;
-    c.beginPath(); c.moveTo(dx * 4, dy * 4);
-    c.quadraticCurveTo(dx * 20 - dy * bend * 0.4, dy * 20 + dx * bend * 0.4, dx * 31 - dy * bend, dy * 31 + dx * bend); c.stroke();
-    c.strokeStyle = '#d9c9a8'; c.lineWidth = 1.2;
-    c.beginPath(); c.moveTo(dx * 12, dy * 12); c.lineTo(dx * 14, dy * 14); c.stroke();
-    // cuerpo
-    c.save(); c.rotate(P.ang);
-    c.fillStyle = '#e8503a'; c.beginPath(); c.ellipse(0, 0, 8.5, 13, 0, 0, 6.3); c.fill();
-    c.fillStyle = 'rgba(255,255,255,0.25)'; c.beginPath(); c.ellipse(-2, -3, 3, 7, 0, 0, 6.3); c.fill();
-    // brazos
-    c.strokeStyle = '#f0b88a'; c.lineWidth = 4; c.beginPath(); c.moveTo(0, -9); c.lineTo(11, -3); c.moveTo(0, 9); c.lineTo(11, 3); c.stroke();
-    // cabeza con gorra
-    c.fillStyle = '#f0b88a'; c.beginPath(); c.arc(0, 0, 7.5, 0, 6.3); c.fill();
-    c.fillStyle = '#2f6fa8'; c.beginPath(); c.arc(-1, 0, 7.5, 1.6, 4.7); c.fill();
-    c.fillRect(2, -7.5, 6, 15);
-    c.fillStyle = '#1d4a73'; c.beginPath(); c.ellipse(8, 0, 4.5, 8, 0, 0, 6.3); c.fill();
-    c.restore();
+    let hands = null, twist = 0;
+    if (act) {
+      const pose = G.Char.actPose(P, act); hands = pose.hands; twist = pose.twist;
+    } else {
+      const bend = F.state === 'fight' ? U.clamp(F.fight.tens / 100, 0, 1) * 10 : 0;
+      c.lineCap = 'round';
+      c.strokeStyle = '#5a3b22'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(dx * 2.7, dy * 2.7);
+      c.quadraticCurveTo(dx * 27 - dy * bend * 0.5, dy * 27 + dx * bend * 0.5, dx * 44.5 - dy * bend * 1.3, dy * 44.5 + dx * bend * 1.3); c.stroke();
+      c.strokeStyle = '#d9c9a8'; c.lineWidth = 1.4;
+      c.beginPath(); c.moveTo(dx * 16, dy * 16); c.lineTo(dx * 19, dy * 19); c.stroke();
+      c.fillStyle = '#3a2a1c'; c.beginPath(); c.arc(dx * 8, dy * 8, 2.8, 0, 6.3); c.fill();
+      const fishing = F.state !== 'idle' && F.state !== 'result';
+      hands = { r: { x: dx * 13.5 - dy * 2, y: dy * 13.5 + dx * 2 }, l: fishing ? { x: dx * 26 + dy * 2, y: dy * 26 - dx * 2 } : null };
+    }
+    G.Char.body(c, L, { ang: P.ang, walk: P.walk, moving: P.moving && !act, hands, twist });
     c.restore();
     // estela en la tabla
     if (S.onPaddle && P.moving) {
@@ -324,9 +335,13 @@ window.G = window.G || {};
     W.drawLand(ctx, vis, E);
     W.drawBuoys(ctx, vis, E);
     drawBoardOnSand(ctx);
+    G.Stall.draw(ctx, vis, E);
+    G.Sailor.draw(ctx, E);
     drawPlayer(ctx);
+    if (P.act) G.Char.drawAct(ctx, P, P.act);
     F.draw(ctx);
     W.drawTall(ctx, vis, E);
+    G.Social.draw(ctx, E);
     drawNight(ctx);
   }
 
@@ -389,7 +404,7 @@ window.G = window.G || {};
     if (G.S.onPaddle && !W.canPaddle(G.P.x, G.P.y)) G.S.onPaddle = false;
     if (!G.S.onPaddle) { const fs = W.freeSpot(G.P.x, G.P.y); G.P.x = fs.x; G.P.y = fs.y; }
     cam.x = G.P.x; cam.y = G.P.y;
-    G.UI.refreshHud(); G.UI.syncDayButton();
+    G.Stall.reset(); G.UI.refreshHud(); G.UI.syncDayButton();
     $('btnNew').classList.toggle('hidden', !had);
     $('btnPlay').textContent = had ? 'Continuar' : 'Jugar';
     const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -402,6 +417,7 @@ window.G = window.G || {};
   $('btnPlay').addEventListener('click', () => {
     G.Audio.unlock(); G.Audio.setSwell(G.S.swell);
     $('title').classList.add('hidden');
+    if (G.Cal.canClaim()) setTimeout(() => { if (!G.UI.modalOpen()) G.UI.open('cal'); }, 700);
     if (G.S.phase === 'prep' && G.S.tutorial === 0) G.UI.toast('🏪 Compra cebo en Pesca El Anzuelo y pulsa ▶ Empezar día');
   });
   $('btnNew').addEventListener('click', () => { if (confirm('¿Borrar la partida y empezar de nuevo?')) { G.resetGame(); location.reload(); } });

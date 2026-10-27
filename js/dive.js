@@ -76,7 +76,7 @@ G.Dive = (function () {
       tick(4);
       if (Math.random() < 0.06) {
         const it = U.pick(G.TRASH);
-        G.S.stats.trash = (G.S.stats.trash || 0) + 1;
+        G.S.stats.trash = (G.S.stats.trash || 0) + 1; G.S.trashLog[it.id] = (G.S.trashLog[it.id] || 0) + 1; G.Ach.check();
         log(`Entre las algas asoma algo que no debería estar aquí: ${it.name.toLowerCase()}. La recoges y la guardas en el bolsillo del neopreno. ♻️ (${G.S.stats.trash} retiradas)`, 'good');
         return;
       }

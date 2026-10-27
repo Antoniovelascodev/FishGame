@@ -27,7 +27,17 @@ G.UI = (function () {
     $('hSwell').textContent = '🌊 ' + G.SWELL_NAMES[S.swell];
     const b = G.BAITS.find(x => x.id === S.eq.bait);
     $('hBait').textContent = b.icon + ' ' + (S.baits[b.id] || 0);
+    const mny = Math.round(S.money * 100) / 100;
+    if (UI._lastMoney != null && mny > UI._lastMoney + 0.004) UI.moneyPop(mny - UI._lastMoney);
+    UI._lastMoney = mny;
+    $('hGems').textContent = '💎 ' + (S.gems || 0);
     $('hCool').textContent = '🧊 ' + S.bag.length + '/' + G.coolerCap();
+  };
+  UI.moneyPop = function (d) {
+    const box = $('moneyPops'); if (!box) return;
+    const el = document.createElement('div'); el.className = 'mpop'; el.textContent = '+' + d.toFixed(2).replace('.', ',') + ' €';
+    box.appendChild(el); while (box.children.length > 4) box.firstChild.remove();
+    setTimeout(() => el.remove(), 1900);
   };
   UI.setSpot = (t) => { const el = $('hSpot'); if (el.textContent !== t) el.textContent = t; };
 
@@ -41,6 +51,7 @@ G.UI = (function () {
     else if (st === 'wait' || st === 'nibble') { ic = '↩️'; lb = 'RECOGER'; }
     else if (st === 'bite') { ic = '⚡'; lb = '¡CLAVAR!'; cls += ' bite'; }
     else if (st === 'fight') { ic = '🌀'; lb = 'RECOGE'; cls += ' reel'; }
+    else if (st === 'steal') { ic = '🕊️'; lb = '...'; }
     else if (st === 'result') { ic = '✔️'; lb = '...'; }
     if (key === lastBtn) return;
     lastBtn = key;
@@ -94,8 +105,8 @@ G.UI = (function () {
       }
     } else if (d.phase === 'fight' && d.info) {
       g('ffn').textContent = d.name + ' · ' + d.info.pct + '%';
-      g('ffs').textContent = d.pull ? '⚠️ ¡TIRA! Suelta' : '✅ Recoge';
-      g('ffs').style.color = d.pull ? '#ff8a6b' : '#6df0b6';
+      g('ffs').textContent = d.gull ? '🕊️ ¡GAVIOTA! Recoge ya' : d.pull ? '⚠️ ¡TIRA! Suelta' : '✅ Recoge';
+      g('ffs').style.color = d.gull ? '#ffd36a' : d.pull ? '#ff8a6b' : '#6df0b6';
       g('ffp').style.width = U.clamp(d.prog, 0, 100) + '%';
       g('fft').textContent = Math.round(d.tens) + '%';
       g('fftb').style.width = U.clamp(d.tens, 0, 100) + '%';
@@ -105,9 +116,8 @@ G.UI = (function () {
   /* ---------- Modales ---------- */
   const modal = $('modal');
   const hookRange = (x) => x.cm[0] <= 0 ? 'hasta ' + x.cm[1] + ' cm' : x.cm[1] >= 400 ? 'desde ' + x.cm[0] + ' cm' : x.cm[0] + '–' + x.cm[1] + ' cm';
-  function open(type, tab) { ms = { type, tab: tab || null, detail: null }; if (type === 'market') ms.mk = newMk(); G.Audio.play('click'); render(); modal.classList.remove('hidden'); }
+  function open(type, tab) { ms = { type, tab: tab || null, detail: null }; if (UI.panels[type] && UI.panels[type].init) UI.panels[type].init(ms); G.Audio.play('click'); render(); modal.classList.remove('hidden'); }
   function close() {
-    if (ms && ms.type === 'market' && ms.mk.committed) { UI.toast('Ya has jugado: tienes que vendérselo al tendero', 'warn'); return; }
     ms = null; modal.classList.add('hidden'); modal.innerHTML = ''; UI.refreshHud(); G.save(); }
   UI.open = function (type, tab) {
     if (G.Fish.locked() && type !== 'menu') { UI.toast('Estás pescando: termina primero 🎣', 'warn'); return; }
@@ -115,32 +125,40 @@ G.UI = (function () {
     open(type, tab);
   };
   UI.close = close;
+  UI.panels = {};          // paneles extra registrados por otros módulos
+  UI.render = () => render();
+  UI.getMs = () => ms;
+  UI.fishPh = (...a) => fishPh(...a);
+  UI.cloneIcon = (...a) => cloneIcon(...a);
+  UI.rarChip = (...a) => rarChip(...a);
 
   const TABS = {
     inv: [['capturas', '🐟 Capturas'], ['equipo', '🎣 Equipo'], ['cebos', '🪱 Cebos'], ['album', '📖 Álbum']],
     shop: [['canas', 'Cañas'], ['hilos', 'Hilos'], ['anzuelos', 'Anzuelos'], ['cebos', 'Cebos'], ['neveras', '🧊 Neveras'], ['buceo', 'Buceo'], ['extras', 'Extras']],
   };
-  const TITLES = { inv: 'Inventario', shop: 'Pesca El Anzuelo', market: '🎲 Mercadillo', lonja: 'Lonja · Proveedores', plan: 'Preparar la jornada', map: 'Mapa de Málaga', menu: 'Ajustes' };
+  const TITLES = { inv: 'Inventario', shop: 'Pesca El Anzuelo', lonja: 'Lonja · Proveedores', plan: 'Preparar la jornada', map: 'Mapa de Málaga', menu: 'Ajustes' };
 
   function render() {
     if (!ms) return;
     if (ms.type === 'catch' || ms.type === 'msg') return;
-    const tabs = TABS[ms.type];
+    const PN = UI.panels[ms.type];
+    const tabs = TABS[ms.type] || (PN && PN.tabs && PN.tabs(ms));
     if (tabs && !ms.tab) ms.tab = tabs[0][0];
     let body = '';
     if (ms.type === 'inv') body = invBody();
     else if (ms.type === 'shop') body = shopBody();
-    else if (ms.type === 'market') body = marketBody();
     else if (ms.type === 'lonja') body = sellBody('lonja');
     else if (ms.type === 'plan') body = planBody();
     else if (ms.type === 'map') body = mapBody();
     else if (ms.type === 'menu') body = menuBody();
+    else if (PN) body = PN.body(ms);
     modal.className = '';
     const prev = modal.querySelector('.body');
     const sc = prev ? prev.scrollTop : 0;
-    modal.innerHTML = `<div class="sheet"><header><h2>${TITLES[ms.type]}</h2><div style="display:flex;gap:8px;align-items:center"><span class="pill small">💶 ${U.money(G.S.money)}</span><button class="x" data-act="close">✕</button></div></header>
+    modal.innerHTML = `<div class="sheet"><header><h2>${TITLES[ms.type] || (PN ? PN.title(ms) : '')}</h2><div style="display:flex;gap:8px;align-items:center"><span class="pill small">💶 ${U.money(G.S.money)}</span><span class="pill small">💎 ${G.S.gems || 0}</span><button class="x" data-act="close">✕</button></div></header>
       ${tabs ? `<div class="tabs">${tabs.map(t => `<button class="tab ${ms.tab === t[0] ? 'on' : ''}" data-act="tab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>` : ''}
       <div class="body">${body}</div></div>`;
+    if (PN && PN.after) PN.after(modal, ms);
     // iconos de pez (canvas)
     modal.querySelectorAll('[data-fish]').forEach(ph => {
       const sp = G.SPECIES_BY_ID[ph.dataset.fish];
@@ -257,7 +275,7 @@ G.UI = (function () {
     if (t === 'cebos') return `<p class="ds" style="color:var(--mut)">El cebo se estropea al terminar el día: compra solo lo que vayas a usar. Mejor cebo = pica antes y atrae mejores peces.</p>` + G.BAITS.map(b => `<div class="item"><div style="font-size:34px">${b.icon}</div><div class="meta"><div class="nm">${b.name} <span class="ds">(tienes ${S.baits[b.id] || 0})</span></div><div class="ds">${b.desc} +${b.pts} pts</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="5" ${can(b.price * 5) ? '' : 'disabled'}>5 · ${U.money(b.price * 5)}</button><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="20" ${can(b.pack20) ? '' : 'disabled'}>20 · ${U.money(b.pack20)}</button></div></div>`).join('');
     if (t === 'neveras') return `<p class="ds" style="color:var(--mut)">Aquí guardas lo que pescas hasta venderlo. Las mejores neveras caben más peces y los mantienen frescos más tiempo.</p>` + G.COOLERS.map((c, i) => {
       const owned = i <= S.cooler;
-      return `<div class="item ${i === S.cooler ? 'on' : ''}"><div style="font-size:30px">🧊</div><div class="meta"><div class="nm">${c.name}</div><div class="ds">Caben ${c.cap} peces · pierden ${c.loss}% de frescura por hora</div></div>${priceBtn(c.price, owned, can(c.price), 'buycooler', `data-v="${i}"`)}</div>`;
+      return `<div class="item ${i === S.cooler ? 'on' : ''}"><div style="font-size:30px">🧊</div><div class="meta"><div class="nm">${c.name}</div><div class="ds">Caben ${c.cap} peces · pierden ${c.loss}% de frescura por hora</div></div>${c.gems ? (owned ? '<button class="btn sm ghost" disabled>Tuya</button>' : `<button class="btn sm" style="background:linear-gradient(160deg,#8a5cf0,#5a35c0)" data-act="buycooler" data-v="${i}" ${S.gems >= c.gems ? '' : 'disabled'}>💎 ${c.gems}</button>`) : priceBtn(c.price, owned, can(c.price), 'buycooler', `data-v="${i}"`)}</div>`;
     }).join('');
     if (t === 'buceo') {
       let h = `<p class="ds" style="color:var(--mut)">Para la pesca submarina necesitas gafas, aletas, neopreno y un arpón. Sal por la zona de buceo de las rocas.</p><div class="sec">Equipo básico</div>`;
@@ -281,7 +299,7 @@ G.UI = (function () {
       if (next) h += `<div class="item"><div class="meta"><div class="nm">Mejorar: ${next.name}</div><div class="ds">Tu pescadería pagará el ${Math.round(next.mult * 100)}% del valor</div></div><button class="btn sm" data-act="upshop" ${S.money >= next.cost ? '' : 'disabled'}>${U.money(next.cost)}</button></div>`;
       else h += `<div class="item"><div class="meta"><div class="nm">¡Pescadería gourmet al máximo! ⭐</div><div class="ds">Paga más que cualquier proveedor.</div></div></div>`;
     } else {
-      h += `<div class="card" style="margin-bottom:8px"><div class="lbl"><span>🚚 Proveedores</span><span>Pagan el ${Math.round(G.SUPPLIER_MULT * 100)}% · precio fijo</span></div></div>`;
+      h += `<div class="card" style="margin-bottom:8px"><div class="lbl"><span>🚚 Proveedores</span><span>Pagan el ${Math.round(G.SUPPLIER_MULT * 100)}% al instante · precio fijo</span></div></div>`;
     }
     if (!S.bag.length) return h + `<p style="color:var(--mut);text-align:center;margin-top:20px">No tienes peces para vender.</p>`;
     let tot = 0; S.bag.forEach(f => tot += G.fishValue(f));
@@ -311,6 +329,7 @@ G.UI = (function () {
         <div class="pct" style="font-size:18px;margin-top:10px" id="pSum">${sm.text}</div>
         <div class="ds" id="pNight" style="color:var(--mut)">${sm.night ? '🌙 Incluye noche: sin la lámpara de pesca verás muy poco.' : '☀️ Jornada de día.'}</div>
       </div>
+      ${(() => { const q = G.Sailor.quest(), sp = G.SPECIES_BY_ID[q.sp]; return `<div class="item"><div style="font-size:30px">⚓</div><div class="meta"><div class="nm">Encargo del marinero</div><div class="ds">${q.done ? 'Hoy ya lo has cumplido ✅' : sp.name + ' de al menos ' + q.cm + ' cm y ' + U.kg(q.kg) + ' → ' + (q.type === 'gems' ? '💎 ' + q.amt : U.money(q.amt))}</div></div></div>`; })()}
       <div class="item"><div style="font-size:30px">🪱</div><div class="meta"><div class="nm">Cebos: ${nb}</div><div class="ds">${nb ? 'Se estropean al acabar el día.' : 'No llevas cebo. Compra en Pesca El Anzuelo.'}</div></div></div>
       <div class="item"><div style="font-size:30px">🧊</div><div class="meta"><div class="nm">${G.cooler().name}: ${S.bag.length}/${G.coolerCap()}</div><div class="ds">${S.bag.length ? 'Aún llevas pescado sin vender: se seguirá estropeando.' : 'Vacía y lista.'}</div></div></div>
       <button class="btn primary" style="width:100%;margin-top:6px" data-act="startday">▶ Empezar jornada</button>
@@ -325,75 +344,6 @@ G.UI = (function () {
     $('pSum').textContent = sm.text; $('pNight').textContent = sm.night ? '🌙 Incluye noche: sin la lámpara de pesca verás muy poco.' : '☀️ Jornada de día.';
   });
 
-  /* ----- Mercadillo: se vende apostando "mayor o menor" con un dado ----- */
-  const newMk = () => ({ stage: 'intro', die: 0, shown: 1, wins: 0, mult: 1, committed: false, rolling: false, forced: false, last: '' });
-  const bagBase = () => Math.round(G.S.bag.reduce((a, f) => a + G.fishValue(f) * G.SUPPLIER_MULT, 0) * 100) / 100;
-  const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-  function dieHTML(n, sz) {
-    let pips = '';
-    for (let i = 0; i < 9; i++) pips += `<i style="width:78%;height:78%;border-radius:50%;place-self:center;background:${PIPS[n].includes(i) ? '#1b2a3a' : 'transparent'}"></i>`;
-    return `<div style="width:${sz}px;height:${sz}px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:${Math.round(sz * 0.12)}px;gap:2px;background:#fff;border-radius:${Math.round(sz * 0.2)}px;box-shadow:0 6px 16px rgba(0,0,0,.4)">${pips}</div>`;
-  }
-  function multText(m) { return m > 1 ? '+' + Math.round((m - 1) * 100) + '% sobre la lonja' : m < 1 ? '50% menos que la lonja' : 'el precio de la lonja'; }
-  function marketBody() {
-    const S = G.S, mk = ms.mk;
-    if (!S.bag.length) return `<p style="color:var(--mut);text-align:center;margin-top:30px">No tienes peces para vender.<br>Vuelve cuando hayas pescado algo 🎣</p>`;
-    const base = bagBase(), offer = Math.round(base * mk.mult * 100) / 100;
-    let h = `<div class="card" style="margin-bottom:8px"><div class="lbl"><span>🐟 ${S.bag.length} peces</span><span>Lonja: ${U.money(base)}</span></div>
-      <div class="ds" style="color:var(--mut);margin-top:6px;line-height:1.4">El tendero tira un dado: adivina si el siguiente número será <b>mayor</b> o <b>menor</b>. Aciertas: te paga <b>+25%</b> sobre la lonja. Fallas: <b>50% menos</b>. Cuando juegas una ronda, <b>ya tienes que vendérselo a él</b>.</div></div>`;
-    if (mk.stage === 'intro') return h + `<button class="btn primary" style="width:100%" data-act="mk_roll">🎲 Que tire el dado</button><p class="ds" style="color:var(--mut);text-align:center">Si prefieres un precio fijo, véndelo en la lonja.</p>`;
-    h += `<div style="display:flex;justify-content:center;margin:12px 0 8px">${dieHTML(mk.rolling ? mk.shown : mk.die, 96)}</div>`;
-    if (mk.last) h += `<div class="pct" style="text-align:center;font-size:17px;line-height:1.3">${mk.last}</div>`;
-    h += `<div class="sum" style="margin-top:6px"><span>Oferta actual</span><span>${U.money(offer)} · ${multText(mk.mult)}</span></div>`;
-    const dis = mk.rolling ? 'disabled' : '';
-    if (mk.stage === 'guess') {
-      const c = mk.die, pu = Math.round((6 - c) / 6 * 100), pd = Math.round((c - 1) / 6 * 100);
-      h += `<div class="chips" style="justify-content:center;margin-bottom:8px"><span class="chip">Mayor ${pu}%</span><span class="chip">Menor ${pd}%</span><span class="chip">Igual ${100 - pu - pd}%</span></div>
-        <div style="display:flex;gap:8px"><button class="btn" style="flex:1" data-act="mk_guess" data-v="up" ${dis}>⬆️ Mayor</button><button class="btn" style="flex:1;background:linear-gradient(160deg,#2a79b0,#1b557d)" data-act="mk_guess" data-v="down" ${dis}>⬇️ Menor</button></div>`;
-      if (!mk.committed) h += `<button class="btn ghost" style="width:100%;margin-top:8px" data-act="close" ${dis}>Mejor no, me voy</button>`;
-    } else if (mk.forced) {
-      h += `<button class="btn primary" style="width:100%;font-size:16px" data-act="mk_sell">💶 Vender por ${U.money(offer)}</button>`;
-    } else {
-      h += `<div style="display:flex;gap:8px"><button class="btn ghost" style="flex:1" data-act="mk_more">🎲 Otra ronda<br><span style="font-size:11px;font-weight:600">arriesgas el bonus</span></button><button class="btn" style="flex:1" data-act="mk_sell">💶 Vender<br><span style="font-size:11px;font-weight:600">${U.money(offer)}</span></button></div>`;
-    }
-    return h;
-  }
-  function mkRoll(final, done) {
-    const mk = ms.mk; mk.rolling = true; let n = 0;
-    const iv = setInterval(() => {
-      if (!ms || ms.type !== 'market') { clearInterval(iv); return; }
-      mk.shown = ++n >= 9 ? final : 1 + ((Math.random() * 6) | 0);
-      if (n % 3 === 0) G.Audio.play('click');
-      if (n >= 9) { clearInterval(iv); mk.rolling = false; done(); }
-      render();
-    }, 85);
-    render();
-  }
-  function mkGuess(dir) {
-    const mk = ms.mk; if (mk.rolling) return;
-    mk.committed = true;
-    const prev = mk.die, final = 1 + ((Math.random() * 6) | 0);
-    mkRoll(final, () => {
-      mk.die = final; mk.stage = 'result';
-      if (final === prev) mk.last = `¡Empate con el ${final}! Nadie gana ni pierde.`;
-      else if ((dir === 'up' && final > prev) || (dir === 'down' && final < prev)) {
-        mk.wins++; mk.mult = 1 + 0.25 * mk.wins;
-        mk.last = `¡Aciertas! Salió el ${final}. Te pagan ${multText(mk.mult)}.`; G.Audio.play('win');
-      } else {
-        mk.mult = 0.5; mk.forced = true;
-        mk.last = `Fallas… salió el ${final}. Tienes que vendérselo con un 50% menos.`; G.Audio.play('lose');
-      }
-      render();
-    });
-  }
-  function mkSell() {
-    const S = G.S, mk = ms.mk, offer = Math.round(bagBase() * mk.mult * 100) / 100, n = S.bag.length;
-    S.money = Math.round((S.money + offer) * 100) / 100; S.stats.earned += offer; S.bag = [];
-    mk.committed = false; G.Audio.play('coin');
-    UI.toast(`Vendes ${n} peces por ${U.money(offer)}`, mk.mult >= 1 ? 'good' : 'warn');
-    close();
-  }
-
   /* ----- Mapa ----- */
   function mapBody() {
     if (G.S.phase === 'prep') return `<p style="color:var(--mut);text-align:center;margin-top:30px">Empieza la jornada para ir a pescar 🎣</p>`;
@@ -404,7 +354,9 @@ G.UI = (function () {
 
   /* ----- Ajustes ----- */
   function menuBody() {
-    return `<div class="item"><div class="meta"><div class="nm">Sonido</div></div><button class="btn sm" data-act="mute">${G.S.muted ? '🔇 Activar' : '🔊 Silenciar'}</button></div>
+    return `<div class="item"><div style="font-size:28px">🏆</div><div class="meta"><div class="nm">Logros</div><div class="ds">Gana gemas 💎 jugando</div></div><button class="btn sm" data-act="go" data-v="ach">Ver</button></div>
+      <div class="item"><div style="font-size:28px">📅</div><div class="meta"><div class="nm">Calendario diario</div><div class="ds">${G.Cal.canClaim() ? '¡Tienes un premio por reclamar!' : 'Vuelve mañana'}</div></div><button class="btn sm" data-act="go" data-v="cal">Ver</button></div>
+      <div class="item"><div class="meta"><div class="nm">Sonido</div></div><button class="btn sm" data-act="mute">${G.S.muted ? '🔇 Activar' : '🔊 Silenciar'}</button></div>
       <div class="sec">Cómo se juega</div>
       <div class="item"><div class="meta ds" style="font-size:13.5px;color:#fff;line-height:1.5">
       🕹️ Arrastra a la izquierda para moverte.<br>🎣 Mantén <b>LANZAR</b> y suéltalo: cuanto más tarde, más lejos. Mueve el joystick para apuntar.<br>
@@ -423,6 +375,9 @@ G.UI = (function () {
   }
   function handle(act, d) {
     const S = G.S;
+    const PN = ms && UI.panels[ms.type];
+    if (PN && PN.act && PN.act(act, d, ms) === true) return;
+    if (act === 'go') { close(); UI.open(d.v); return; }
     if (act === 'close') return close();
     if (act === 'tab') { ms.tab = d.v; ms.detail = null; G.Audio.play('click'); return render(); }
     if (act === 'equip') { S.eq[d.k] = d.v; G.Audio.play('click'); return render(); }
@@ -447,36 +402,33 @@ G.UI = (function () {
     }
     if (act === 'buycooler') {
       const c = G.COOLERS[+d.v];
-      if (S.money < c.price) return UI.toast('No tienes suficiente dinero', 'warn');
-      S.money -= c.price; S.cooler = +d.v; G.Audio.play('buy'); UI.toast('Comprada: ' + c.name, 'good'); G.save(); return render();
+      if (c.gems) { if (S.gems < c.gems) return UI.toast('No tienes suficientes gemas', 'warn'); S.gems -= c.gems; }
+      else { if (S.money < c.price) return UI.toast('No tienes suficiente dinero', 'warn'); S.money -= c.price; }
+      S.cooler = +d.v; G.Audio.play('buy'); UI.toast('Comprada: ' + c.name, 'good'); G.save(); return render();
     }
     if (act === 'release') {
       const i = S.bag.findIndex(f => f.id === d.v); if (i < 0) return;
       S.bag.splice(i, 1); G.Audio.play('click'); return render();
     }
     if (act === 'startday') { close(); G.startDay(); return; }
-    if (act === 'mk_roll') { const f = 1 + ((Math.random() * 6) | 0); mkRoll(f, () => { ms.mk.die = f; ms.mk.stage = 'guess'; ms.mk.last = 'El tendero ha sacado un ' + f + '. ¿El siguiente será mayor o menor?'; render(); }); return; }
-    if (act === 'mk_guess') return mkGuess(d.v);
-    if (act === 'mk_more') { ms.mk.stage = 'guess'; ms.mk.last = 'Sigue en el ' + ms.mk.die + '. ¿Mayor o menor?'; return render(); }
-    if (act === 'mk_sell') return mkSell();
     if (act === 'swapout') {
       const c = ms.c, done = ms.done, ms0 = ms;
       const rowRect = UI._lastEl && UI._lastEl.closest('.item') ? UI._lastEl.closest('.item').getBoundingClientRect() : null;
-      if (d.v === 'NEW') { UI.toast('Devuelves ' + G.SPECIES_BY_ID[c.sp].name.toLowerCase() + ' al mar 🌊'); UI.flyFish(G.SPECIES_BY_ID[c.sp], ms.rect || rowRect, 'sea'); }
+      if (d.v === 'NEW') { UI.toast('Devuelves ' + G.SPECIES_BY_ID[c.sp].name.toLowerCase() + ' al mar 🌊'); G.Char.startAct('release', G.SPECIES_BY_ID[c.sp], c, null); }
       else {
         const i = S.bag.findIndex(f => f.id === d.v);
-        if (i >= 0) { UI.toast('Sueltas ' + G.SPECIES_BY_ID[S.bag[i].sp].name.toLowerCase() + ' 🌊'); UI.flyFish(G.SPECIES_BY_ID[S.bag[i].sp], rowRect, 'sea'); S.bag.splice(i, 1); S.bag.push(c); setTimeout(() => UI.flyFish(G.SPECIES_BY_ID[c.sp], ms0 && ms0.rect, 'cooler'), 250); }
+        if (i >= 0) { UI.toast('Sueltas ' + G.SPECIES_BY_ID[S.bag[i].sp].name.toLowerCase() + ' 🌊'); const old = S.bag[i]; S.bag.splice(i, 1); S.bag.push(c); G.Char.startAct('release', G.SPECIES_BY_ID[old.sp], old, () => G.Char.startAct('store', G.SPECIES_BY_ID[c.sp], c, null)); }
       }
       ms = null; modal.innerHTML = ''; modal.className = 'hidden'; UI.refreshHud(); G.save(); done && done(); return;
     }
     if (act === 'sell') {
       const i = S.bag.findIndex(f => f.id === d.v); if (i < 0) return;
-      const v = sellFish(S.bag[i], d.d); S.bag.splice(i, 1);
-      G.Audio.play('coin'); UI.toast('+' + U.money(v), 'good'); G.save(); return render();
+      const v = sellFish(S.bag[i], d.d); S.bag.splice(i, 1); G.Ach.count('lonja'); G.Ach.check();
+      G.Audio.play('coin'); G.save(); return render();
     }
     if (act === 'sellall') {
-      let tot = 0; S.bag.forEach(f => tot += sellFish(f, d.v)); const n = S.bag.length; S.bag = [];
-      G.Audio.play('coin'); UI.toast(`Vendes ${n} peces por ${U.money(tot)}`, 'good'); G.save(); return render();
+      let tot = 0; S.bag.forEach(f => tot += sellFish(f, d.v)); const n = S.bag.length; S.bag = []; G.Ach.count('lonja', n); G.Ach.check();
+      G.Audio.play('coin'); UI.toast(`Vendes ${n} peces`, 'good'); G.save(); return render();
     }
     if (act === 'upshop') {
       const nx = G.SHOP_LEVELS[S.shopLevel + 1];
@@ -509,9 +461,9 @@ G.UI = (function () {
       <div>${flags.isNew ? '<span class="badge new">⭐ ¡NUEVA ESPECIE!</span>' : ''}${flags.isRecord ? '<span class="badge rec">🏆 ¡Récord!</span>' : ''}${c.hurt ? `<span class="badge rec" style="background:#b0413a">🩹 ${c.hurt} · ${Math.round(c.fresh)}% fresco</span>` : ''}${flags.bonus ? `<span class="badge new">🎁 Premio +${U.money(flags.bonus)}</span>` : ''}</div>
       ${flags.isNew ? `<div class="ds" style="color:var(--mut);margin-top:6px">${flags.n}/${G.SPECIES.length} especies</div>` : ''}
       ${sp.prot ? `<div class="ds" style="margin-top:8px;color:#ffb27a;font-weight:700">🛡️ Protegida: si te la quedas hay un ${Math.round(G.PROT_CHANCE * 100)}% de multa de ${U.money(c.value * G.PROT_FINE)}</div>` : ''}
-      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn ghost" style="flex:1" id="crel">🌊 Devolver al mar</button><button class="btn primary" style="flex:1.4;font-size:15px;padding:12px 10px" id="ckeep">${flags.full ? '🧊 Guardar (nevera llena)' : '🧊 Guardar en la nevera'}</button></div></div></div>`;
+      <div class="catbtns" style="display:flex;gap:8px;margin-top:14px"><button class="btn ghost" style="flex:1" id="crel">🌊 Devolver al mar</button><button class="btn primary" style="flex:1.4;font-size:15px;padding:12px 10px" id="ckeep">${flags.full ? '🧊 Guardar (nevera llena)' : '🧊 Guardar en la nevera'}</button></div></div></div>`;
     modal.classList.remove('hidden');
-    const big = cloneIcon(sp, 240, false); $('cfish').appendChild(big);
+    const big = cloneIcon(sp, Math.max(130, Math.min(240, Math.round(innerHeight * 0.24))), false); $('cfish').appendChild(big);
     const decide = (keep) => { const rect = $('cfish').getBoundingClientRect(); ms = null; modal.innerHTML = ''; modal.className = 'hidden'; onClose && onClose(keep, rect); UI.refreshHud(); };
     $('ckeep').onclick = () => decide(true); $('crel').onclick = () => decide(false);
   };
@@ -558,6 +510,8 @@ G.UI = (function () {
     const done = (k) => { ms = null; modal.innerHTML = ''; modal.className = 'hidden'; UI.refreshHud(); cb(k); };
     $('prel').onclick = () => done(false); $('pkeep').onclick = () => done(true);
   };
+  UI.bumpCooler = function () { const p = $('hCool'); p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); UI.refreshHud(); G.Audio.play('buy'); };
+
   /* Animación del pez: vuela hasta la nevera del HUD, o cae de vuelta al mar */
   UI.flyFish = function (sp, rect, kind) {
     try {
@@ -591,6 +545,14 @@ G.UI = (function () {
     } catch (e) { /* animación opcional */ }
   };
 
+  /* Pregunta con varios botones: buttons = [[etiqueta, función], ...] */
+  UI.choose = function (title, text, buttons) {
+    ms = { type: 'msg' };
+    modal.className = 'catch';
+    modal.innerHTML = `<div class="catchcard"><div style="position:relative"><h3>${title}</h3><p style="color:var(--mut);line-height:1.4">${text}</p><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${buttons.map((b, i) => `<button class="btn ${i === 0 ? 'primary' : ''}" style="${i === 0 ? 'font-size:16px;padding:12px' : ''}" data-i="${i}">${b[0]}</button>`).join('')}</div></div></div>`;
+    modal.classList.remove('hidden');
+    modal.querySelectorAll('[data-i]').forEach(btn => { btn.onclick = () => { ms = null; modal.innerHTML = ''; modal.className = 'hidden'; buttons[+btn.dataset.i][1](); UI.refreshHud(); }; });
+  };
   UI.confirm = function (title, text, okLabel, onOk) {
     ms = { type: 'msg' };
     modal.className = 'catch';
@@ -602,6 +564,7 @@ G.UI = (function () {
   };
 
   /* Botones */
+  $('hGems').addEventListener('click', () => UI.open('ach'));
   $('btnInv').addEventListener('click', () => UI.open('inv'));
   $('btnShop').addEventListener('click', () => G.dayButton());
   $('btnMap').addEventListener('click', () => UI.open('map'));

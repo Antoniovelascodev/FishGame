@@ -85,10 +85,10 @@ G.Fish = (function () {
   /* ---- Geometría ---- */
   F.rodTip = function () {
     const a = F.state === 'idle' ? G.P.ang : F.aim;
-    return { x: G.P.x + Math.cos(a) * 30, y: G.P.y + Math.sin(a) * 30 - 2 };
+    return { x: G.P.x + Math.cos(a) * 44.5 * G.PS, y: G.P.y + Math.sin(a) * 44.5 * G.PS - 1 };
   };
   F.busy = () => F.state !== 'idle';
-  F.locked = () => ['charge', 'cast', 'bite', 'fight', 'result'].includes(F.state);
+  F.locked = () => ['charge', 'cast', 'bite', 'fight', 'steal', 'result'].includes(F.state);
 
   function reachDist(a) {
     // máxima distancia en metros según caña y límites (boyas, costa)
@@ -108,6 +108,7 @@ G.Fish = (function () {
   /* ---- Control ---- */
   F.press = function () {
     const st = F.state;
+    if (G.P.act) return;
     if (st === 'idle') {
       if (G.UI.modalOpen()) return;
       if (G.S.phase !== 'day') { G.UI.toast('Primero empieza la jornada: ▶ Empezar día', 'warn'); return; }
@@ -148,7 +149,7 @@ G.Fish = (function () {
     G.S.stats.casts++;
     F.emptyTries = 0;
     F.school = G.World.schoolAt(F.target.x, F.target.y, G.env.t);
-    F.barren = !F.school && Math.random() < 0.38;
+    F.barren = !F.school && Math.random() < 0.55;
     G.Audio.play('whoosh');
     G.UI.refreshHud();
   }
@@ -170,6 +171,8 @@ G.Fish = (function () {
       pos: { x: F.target.x, y: F.target.y }, wob: 0, flash: 0,
     };
     F.fight.start = { x: F.target.x, y: F.target.y };
+    // 1 de cada 15 peces: una gaviota intenta quedárselo
+    F.fight.gull = Math.random() < 1 / 15 ? { st: 'wait', at: U.rand(2.5, 5), t: 0 } : null;
     G.UI.fishHud({ phase: 'fight' });
   };
 
@@ -251,12 +254,27 @@ G.Fish = (function () {
       }
     } else if (st === 'fight') {
       updateFight(dt);
+    } else if (st === 'steal') {
+      updateSteal(dt);
     }
   };
 
   function updateFight(dt) {
     const f = F.fight, I = G.Input, ln = G.line();
     f.t += dt;
+    // la gaviota: mientras ataca, recoger cuesta más, el pez tira más y sube la tensión
+    let gd = 0; const g = f.gull;
+    if (g) {
+      if (g.st === 'wait' && f.t >= g.at) {
+        g.st = 'dive'; g.t = 0; const a0 = U.rand(-2.7, -0.4);
+        g.sx = f.pos.x + Math.cos(a0) * 280; g.sy = f.pos.y + Math.sin(a0) * 280;
+        G.UI.toast('🕊️ ¡Una gaviota va a por tu pez! Recoge rápido', 'warn'); G.Audio.play('gull');
+      } else if (g.st === 'dive') {
+        g.t += dt; gd = 1;
+        if (f.prog >= 85) { g.st = 'flee'; g.t = 0; g.px = g.x != null ? g.x : f.pos.x; g.py = g.y != null ? g.y : f.pos.y; G.UI.toast('¡La gaviota se asusta y se va!', 'good'); }
+        else if (g.t >= 3.4) { startSteal(); return; }
+      } else if (g.st === 'flee') { g.t += dt; if (g.t > 1.6) f.gull = null; }
+    }
     const reeling = I.castHeld;
     f.modeT -= dt;
     if (f.modeT <= 0) {
@@ -265,15 +283,15 @@ G.Fish = (function () {
     }
     const tired = 1 - Math.min(0.5, f.t / 45);
     const pullBack = (6 + 16 * (1 - f.P)) * tired;
-    const reelRate = 10 + 16 * f.P;
+    const reelRate = (10 + 16 * f.P) * (1 - 0.35 * gd);
     if (reeling) {
       f.prog += reelRate * dt * (f.mode === 'pull' ? 0.35 : 1);
-      f.tens += (f.mode === 'pull' ? 70 : 34) * ln.tension * dt;
+      f.tens += ((f.mode === 'pull' ? 70 : 34) * ln.tension + 14 * gd) * dt;
       if (f.mode === 'pull') f.prog -= pullBack * 0.4 * dt;
       f.reelTick = (f.reelTick || 0) - dt; if (f.reelTick <= 0) { f.reelTick = 0.09; G.Audio.play('reel'); }
     } else {
       f.tens -= 38 * dt;
-      f.prog -= (f.mode === 'pull' ? pullBack : 2) * dt;
+      f.prog -= (f.mode === 'pull' ? pullBack : 2 + 7 * gd) * dt;
     }
     f.tens = Math.max(0, f.tens);
     f.flash = Math.max(0, f.flash - dt * 2);
@@ -286,7 +304,7 @@ G.Fish = (function () {
     if (!G.S.onPaddle && !G.World.inPier(G.P.x, G.P.y, 8)) f.pos.y = Math.min(f.pos.y, G.World.shoreY(f.pos.x) - 6);
     F.target = { x: f.pos.x, y: f.pos.y };
     if (Math.random() < dt * 8) F.rings.push({ x: f.pos.x, y: f.pos.y, t: 0, life: 0.7 });
-    G.UI.fishHud({ phase: 'fight', prog: f.prog, tens: f.tens, pull: f.mode === 'pull', info: F.cur.info, name: G.S.album[F.cur.sp.id] ? F.cur.sp.name : '???' });
+    G.UI.fishHud({ phase: 'fight', prog: f.prog, tens: f.tens, pull: f.mode === 'pull', gull: !!(f.gull && f.gull.st === 'dive'), info: F.cur.info, name: G.S.album[F.cur.sp.id] ? F.cur.sp.name : '???' });
     if (f.tens >= 100) { endFight(false, 'snap'); }
     else if (f.prog >= 100) { endFight(true); }
     else if (f.prog <= 0) { endFight(false, 'escape'); }
@@ -306,10 +324,53 @@ G.Fish = (function () {
   /* A veces lo que pica es basura: lata, botella, vaper o bolsa */
   function hookTrash() {
     const it = U.pick(G.TRASH);
-    G.S.stats.trash = (G.S.stats.trash || 0) + 1;
+    G.S.stats.trash = (G.S.stats.trash || 0) + 1; G.S.trashLog[it.id] = (G.S.trashLog[it.id] || 0) + 1; G.Ach.check();
     F.state = 'result'; F.rings.length = 0; G.UI.fishHud(null);
     G.Audio.play('lose'); G.save(); G.UI.refreshHud();
     G.UI.showTrash(it, () => { F.state = 'idle'; F.cur = null; });
+  }
+
+  /* La gaviota agarra el pez y se lo lleva volando */
+  function startSteal() {
+    const f = F.fight, g = f.gull;
+    F.state = 'steal'; F.steal = { t: 0, sx: g.x != null ? g.x : f.pos.x + 40, sy: g.y != null ? g.y : f.pos.y - 40, fx: f.pos.x, fy: f.pos.y, sp: F.cur.sp, cm: F.cur.cm };
+    F.rings.length = 0; G.UI.fishHud(null); G.Audio.play('gull'); G.Audio.play('snap');
+  }
+  function updateSteal(dt) {
+    const s = F.steal; s.t += dt;
+    if (s.t >= 2.1) {
+      F.state = 'result';
+      G.UI.showMsg('🕊️ ¡Una gaviota se ha llevado tu pez!', 'Estaba a punto de ser tuyo. La próxima vez recoge más rápido cuando la veas bajar.', () => { F.state = 'idle'; F.cur = null; });
+    }
+  }
+  function gullSprite(c, x, y, ang, alt, t, carry) {
+    c.fillStyle = 'rgba(0,0,0,0.16)'; c.beginPath(); c.ellipse(x + alt * 0.35, y + alt * 0.5 + 2, 10, 3.2, ang, 0, 6.3); c.fill();
+    c.save(); c.translate(x, y - alt); c.rotate(ang);
+    const flap = Math.sin(t * 14) * 0.55;
+    if (carry) G.FishArt.draw(c, carry.sp, 2, 8, U.clamp(15 + carry.cm * 0.4, 18, 38), 0.35, { ph: t * 34 });
+    c.fillStyle = '#fff'; c.beginPath(); c.ellipse(0, 0, 9.5, 3.6, 0, 0, 6.3); c.fill();
+    c.beginPath(); c.moveTo(0, -1); c.lineTo(-3, -15 - flap * 7); c.lineTo(4, -2); c.moveTo(0, 1); c.lineTo(-3, 15 + flap * 7); c.lineTo(4, 2); c.fill();
+    c.fillStyle = '#8f9aa3'; c.beginPath(); c.arc(7, 0, 3, 0, 6.3); c.fill();
+    c.fillStyle = '#e8a33a'; c.fillRect(9.5, -1, 3.6, 2.2);
+    c.restore();
+  }
+  function gullDraw(c) {
+    const t = G.env.t, f = F.fight;
+    if (F.state === 'fight' && f && f.gull && (f.gull.st === 'dive' || f.gull.st === 'flee')) {
+      const g = f.gull;
+      if (g.st === 'dive') {
+        const p = U.smooth(Math.min(1, g.t / 3.4)), tx = f.pos.x + Math.sin(t * 5) * 6, ty = f.pos.y + Math.cos(t * 4) * 5;
+        g.x = U.lerp(g.sx, tx, p); g.y = U.lerp(g.sy, ty, p);
+        gullSprite(c, g.x, g.y, Math.atan2(ty - g.sy, tx - g.sx), U.lerp(90, 10, p) + Math.sin(t * 9) * 2, t, null);
+      } else {
+        const p = U.smooth(Math.min(1, g.t / 1.6)), x = U.lerp(g.px, g.sx, p), y = U.lerp(g.py, g.sy, p);
+        gullSprite(c, x, y, Math.atan2(g.sy - g.py, g.sx - g.px), U.lerp(14, 110, p), t, null);
+      }
+    } else if (F.state === 'steal' && F.steal) {
+      const s = F.steal, u = s.t;
+      if (u < 0.7) { const p = U.smooth(u / 0.7); gullSprite(c, U.lerp(s.sx, s.fx, p), U.lerp(s.sy, s.fy, p), Math.atan2(s.fy - s.sy, s.fx - s.sx), U.lerp(10, 5, p), t, null); G.FishArt.draw(c, s.sp, s.fx, s.fy, U.clamp(15 + s.cm * 0.4, 18, 38), 0.4 + Math.sin(t * 20) * 0.3, { ph: t * 30 }); }
+      else { const p = U.smooth(Math.min(1, (u - 0.7) / 1.4)); gullSprite(c, U.lerp(s.fx, s.fx + 260, p), U.lerp(s.fy, s.fy - 200, p), -0.6, U.lerp(5, 120, p), t, { sp: s.sp, cm: s.cm }); }
+    }
   }
 
   function endFight(win, why) {
@@ -345,6 +406,9 @@ G.Fish = (function () {
     let bonus = 0;
     const n = G.speciesCount();
     if (isNew && G.MILESTONES[n] && !G.S.milestones.includes(n)) { bonus = G.MILESTONES[n]; G.S.milestones.push(n); G.S.money += bonus; }
+    // logros y gemas
+    { const A = G.Ach; if (G.env.night > 0.5) A.count('night'); if (G.S.onPaddle) A.count('paddle'); if (G.env.swell >= 3) A.count('storm'); if (G.World.inPier(G.P.x, G.P.y, 6)) A.count('pier'); if (source === 'dive') A.count('spear');
+      if (isNew) A.gems(1, '⭐ Nueva especie: ' + sp.name); A.check(); }
     G.save();
     G.UI.refreshHud();
     const fin = () => { if (!source) { F.state = 'idle'; F.cur = null; } };
@@ -352,8 +416,8 @@ G.Fish = (function () {
     G.UI.showCatch(catchObj, { isNew, isRecord, bonus, n, full }, (keep, rect) => {
       // 1) devolverla al mar
       if (!keep) {
-        G.S.stats.released = (G.S.stats.released || 0) + 1;
-        G.UI.flyFish(sp, rect, 'sea'); G.UI.toast('Devuelves ' + sp.name.toLowerCase() + ' al mar 🌊', sp.prot ? 'good' : '');
+        G.S.stats.released = (G.S.stats.released || 0) + 1; if (sp.prot) G.Ach.count('protRel'); G.Ach.check();
+        G.Char.startAct('release', sp, catchObj, null); G.UI.toast('Devuelves ' + sp.name.toLowerCase() + ' al mar 🌊', sp.prot ? 'good' : '');
         G.save(); return fin();
       }
       // 2) especie protegida: la policía puede verte al instante
@@ -368,7 +432,9 @@ G.Fish = (function () {
       // 3) guardarla en la nevera (o elegir qué soltar si está llena)
       G.S.dayLog.fish++;
       if (full) return G.UI.showSwap(catchObj, fin, rect);
-      G.S.bag.push(catchObj); G.save(); G.UI.flyFish(sp, rect, 'cooler'); fin();
+      G.S.bag.push(catchObj); G.save();
+      if (G.Dive && G.Dive.active) G.UI.bumpCooler(); else G.Char.startAct('store', sp, catchObj, null);
+      fin();
     });
   };
 
@@ -449,6 +515,7 @@ G.Fish = (function () {
     }
   };
 
+  const baseDraw = F.draw; F.draw = function (ctx) { baseDraw(ctx); gullDraw(ctx); };
   F.pickSpecies = pickSpecies; F.candidates = candidates; F.gearPoints = gearPoints; F.validTarget = validTarget;
   return F;
 })();

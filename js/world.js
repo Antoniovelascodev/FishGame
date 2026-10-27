@@ -68,7 +68,17 @@ G.World = (function () {
     const tip = swell >= 3 ? 880 : PIER.y0;
     if (x > PIER.x0 + 8 && x < PIER.x1 - 8 && y > tip && y < PIER.y1) return true;
     if (y > PROM_Y1 - 16) return false;
-    return y > shoreY(x) - 8 && !hitUmbrella(x, y);
+    return y > shoreY(x) - 8 && !hitUmbrella(x, y) && !hitTowel(x, y);
+  }
+  /* Toallas: rectángulo girado (18 x 30) algo ensanchado para el personaje */
+  function hitTowel(x, y) {
+    for (const u of towels) {
+      if (Math.abs(u.x - x) > 24 || Math.abs(u.y - y) > 24) continue;
+      const dx = x - u.x, dy = y - u.y, ca = Math.cos(-u.a), sa = Math.sin(-u.a);
+      const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
+      if (Math.abs(lx) < 9 + 6 && Math.abs(ly) < 15 + 6) return u;
+    }
+    return null;
   }
   function hitUmbrella(x, y) {
     for (const u of umbrellas) {
@@ -121,11 +131,12 @@ G.World = (function () {
   const buildings = [];
   (function () {
     const named = [
-      { x: 380, w: 190, label: 'MERCADILLO', kind: 'fishshop', wall: '#f2f2ee', awn: '#2d7fc4' },
       { x: 600, w: 200, label: 'PESCA EL ANZUELO', kind: 'tackle', wall: '#f0dcb4', awn: '#d9552e' },
       { x: 830, w: 190, label: 'LONJA · PROVEEDORES', kind: 'lonja', wall: '#e1e9ea', awn: '#2c8c6a' },
+      { x: 1090, w: 190, label: 'MODA MARINERA', kind: 'fashion', wall: '#f4e1ec', awn: '#c2477e' },
+      { x: 1300, w: 210, h: 150, label: 'TU PESCADERÍA', kind: 'stall', wall: '#eef3f6', awn: '#2d7fc4' },
     ];
-    for (const n of named) buildings.push({ ...n, y: PROM_Y1, h: 190 });
+    for (const n of named) buildings.push({ y: PROM_Y1, ...n, h: n.h || 190 });
     let x = 10;
     while (x < 3300) {
       const w = 110 + rng() * 90;
@@ -197,26 +208,66 @@ G.World = (function () {
     ctx.fillStyle = p.hair; ctx.beginPath(); ctx.arc(-1, 0, 6.6, 1.7, 4.6); ctx.fill();
     ctx.restore();
   }
+  /* Posición actual de una persona (null si no está en la playa); incluye el empujón de un choque */
+  function personPos(p, hour, t) {
+    const al = personAlpha(p, hour);
+    if (al == null) return null;
+    let { x, y, hd } = pPos(p, t);
+    if (hour < p.arr + 0.25 || hour >= p.lv) {
+      // llegando o marchándose por el paseo
+      const u = hour >= p.lv ? U.smooth(U.clamp((hour - p.lv) / EXIT_DUR, 0, 1)) : 1 - U.smooth(U.clamp((hour - p.arr) / 0.25, 0, 1));
+      const ex = p.cx, ey = PROM_Y1 - 8;
+      hd = Math.atan2(ey - y, ex - x);
+      x = U.lerp(x, ex, u); y = U.lerp(y, ey, u);
+    }
+    if (p.st != null) { const k = Math.max(0, 1 - (t - p.st) / 0.9); if (k > 0) { x += p.sx * k; y += p.sy * k; } }
+    return { x, y, hd, al, p };
+  }
+  function peopleNow(hour, t) {
+    const out = [];
+    for (const p of people) { const r = personPos(p, hour, t); if (r) out.push(r); }
+    return out;
+  }
+  /* Bañistas tumbados que están en su toalla ahora */
+  function sunbathersNow(hour) { return towels.filter(tw => tw.lie && hour >= tw.arr && hour <= tw.lv + 0.3); }
   function drawPeople(ctx, vis, env) {
     const hour = env.hour, t = env.t;
     for (const p of people) {
-      const al = personAlpha(p, hour);
-      if (al == null) continue;
-      let { x, y, hd } = pPos(p, t);
-      if (hour < p.arr + 0.25 || hour >= p.lv) {
-        // llegando o marchándose por el paseo
-        const u = hour >= p.lv ? U.smooth(U.clamp((hour - p.lv) / EXIT_DUR, 0, 1)) : 1 - U.smooth(U.clamp((hour - p.arr) / 0.25, 0, 1));
-        const ex = p.cx, ey = PROM_Y1 - 8;
-        hd = Math.atan2(ey - y, ex - x);
-        x = U.lerp(x, ex, u); y = U.lerp(y, ey, u);
-      }
-      if (x < vis.x0 - 30 || x > vis.x1 + 30 || y < vis.y0 - 30 || y > vis.y1 + 30) continue;
-      drawPerson(ctx, x, y, hd, t, p, al, 0.74);
+      const r = personPos(p, hour, t);
+      if (!r) continue;
+      if (r.x < vis.x0 - 30 || r.x > vis.x1 + 30 || r.y < vis.y0 - 30 || r.y > vis.y1 + 30) continue;
+      drawPerson(ctx, r.x, r.y, r.hd, t, p, r.al, 0.74);
     }
   }
   // bañistas tumbados en las toallas
   for (const tw of towels) {
     tw.lie = rngP() < 0.7; tw.skin = SKIN[(rngP() * SKIN.length) | 0]; tw.suit = SHIRT[(rngP() * SHIRT.length) | 0]; tw.arr = 9 + rngP() * 2; tw.lv = 19.2 + rngP() * 0.7;
+  }
+
+  /* ---- Cangrejos de la orilla: pocos, huyen del jugador ---- */
+  const crabs = [];
+  for (let i = 0; i < 14; i++) crabs.push({ x: 140 + rngP() * 3000, off: 16 + rngP() * 58, rg: 22 + rngP() * 60, sp: 0.2 + rngP() * 0.35, ph: rngP() * 6.28, fx: 0, lt: 0, flee: 0, sc: 0.9 + rngP() * 0.4 });
+  function drawCrabs(ctx, vis, env) {
+    const t = env.t, P = G.P;
+    for (const c of crabs) {
+      const dt = Math.min(0.1, Math.max(0, t - c.lt)); c.lt = t;
+      const x = c.x + Math.sin(t * c.sp + c.ph) * c.rg + c.fx;
+      const y = shoreY(x) + c.off + Math.sin(t * 2 + c.ph) * 1.2;
+      if (x < vis.x0 - 20 || x > vis.x1 + 20 || y < vis.y0 - 20 || y > vis.y1 + 20) continue;
+      const dxp = x - P.x, dyp = y - P.y, d = Math.hypot(dxp, dyp);
+      if (d < 62 && !G.S.onPaddle) { c.fx = U.clamp(c.fx + (dxp >= 0 ? 1 : -1) * 170 * dt * (1.3 - d / 62), -170, 170); c.flee = 0.5; }
+      else { c.flee = Math.max(0, c.flee - dt); c.fx *= 1 - Math.min(1, dt * 0.25); }
+      const moving = c.flee > 0 || Math.abs(Math.cos(t * c.sp + c.ph)) > 0.6, leg = Math.sin(t * 15 + c.ph) * (moving ? 1.7 : 0.3);
+      ctx.save(); ctx.translate(x, y); ctx.scale(c.sc, c.sc);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(1, 2.6, 5.4, 2.3, 0, 0, 6.3); ctx.fill();
+      ctx.strokeStyle = '#a83a28'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+      for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(s * 3, -1 + i * 1.6); ctx.lineTo(s * (6 + (i % 2 ? leg : -leg)), -2 + i * 2.2); ctx.stroke(); }
+      ctx.strokeStyle = '#c4492f'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-3.5, -2); ctx.lineTo(-5.6, -4.3); ctx.moveTo(3.5, -2); ctx.lineTo(5.6, -4.3); ctx.stroke();
+      ctx.fillStyle = '#d9573a'; ctx.beginPath(); ctx.arc(-5.8, -5, 2.1, 0, 6.3); ctx.arc(5.8, -5, 2.1, 0, 6.3); ctx.fill();
+      ctx.fillStyle = '#e0603f'; ctx.beginPath(); ctx.ellipse(0, 0, 4.8, 3.4, 0, 0, 6.3); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(-1.6, -3.1, 0.7, 0, 6.3); ctx.arc(1.6, -3.1, 0.7, 0, 6.3); ctx.fill();
+      ctx.restore();
+    }
   }
 
   /* ---- Bancos de peces: sombras en el agua que indican dónde hay pesca ---- */
@@ -236,19 +287,19 @@ G.World = (function () {
   function spawnSchool(s, t, first) {
     for (let tries = 0; tries < 12; tries++) {
       // el banco entero queda lejos de la arena: su borde más cercano a la orilla está a >= 8 m
-      const rad = 30 + Math.random() * 30, minD = (rad * 0.75 + 58) / PXM;
+      const rad = 18 + Math.random() * 14, minD = (rad * 0.75 + 58) / PXM;
       const x = 140 + Math.random() * 3000, depth = minD + Math.pow(Math.random(), 1.5) * (90 - minD);
       const y = shoreY(x) - depth * PXM;
       if (inPier(x, y, 30) || y < G.BUOY_Y + 30) continue;
       const sp = pickSchoolSpecies(x, y);
       if (!sp) continue;
-      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 3 + ((Math.random() * 5) | 0);
-      s.life = 45 + Math.random() * 80; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
+      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 1 + (Math.random() < 0.35 ? 1 : 0);
+      s.life = 70 + Math.random() * 110; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
       return;
     }
     s.sp = null; s.born = t; s.life = 5;
   }
-  for (let i = 0; i < 18; i++) { const s = {}; spawnSchool(s, 0, true); schools.push(s); }
+  for (let i = 0; i < 8; i++) { const s = {}; spawnSchool(s, 0, true); schools.push(s); }
   function schoolAlpha(s, t) {
     const age = t - s.born;
     return U.clamp(Math.min(age / 4, (s.life - age) / 6), 0, 1);
@@ -270,7 +321,10 @@ G.World = (function () {
       if (!s.sp || s.x + s.r < vis.x0 - 60 || s.x - s.r > vis.x1 + 60 || s.y + s.r < vis.y0 - 60 || s.y - s.r > vis.y1 + 60) continue;
       const al = schoolAlpha(s, t);
       if (al <= 0.01) continue;
-      const base = al * U.clamp(1.05 - s.depth / 120, 0.4, 1) * 0.42;
+      // solo se distinguen de cerca y muy tenues: hay que buscar las zonas
+      const dd = Math.hypot(G.P.x - s.x, G.P.y - s.y), prox = U.clamp((420 - dd) / 260, 0, 1);
+      const base = al * U.clamp(1.05 - s.depth / 120, 0.4, 1) * 0.17 * prox;
+      if (base < 0.01) continue;
       const len = U.clamp(18 + (s.sp.cm[0] + s.sp.cm[1]) * 0.3, 22, 64);
       for (let i = 0; i < s.n; i++) {
         const a = t * 0.32 * s.dir + i * 2.4 + s.seed, rr = s.r * (0.3 + 0.62 * ((i * 0.37 + s.seed) % 1));
@@ -465,8 +519,8 @@ G.World = (function () {
       ctx.fillStyle = '#fff'; ctx.font = '700 11px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(b.label, x + w / 2, y + 53);
       ctx.font = '26px serif';
-      ctx.fillText(b.kind === 'fishshop' ? '🎲' : b.kind === 'tackle' ? '🎣' : '⚓', x + w / 2, y + 108);
-      const open = G.S.phase === 'prep';
+      ctx.fillText(b.kind === 'fishshop' ? '🎲' : b.kind === 'tackle' ? '🎣' : b.kind === 'fashion' ? '👕' : b.kind === 'stall' ? '🐟' : '⚓', x + w / 2, y + 108);
+      const open = G.shopOpen(b.kind);
       ctx.font = '700 10px system-ui'; ctx.fillStyle = open ? '#2fbf7a' : '#e0584a';
       ctx.fillText(open ? 'ABIERTO' : 'CERRADO', x + w / 2, y + 78);
       if (open) {
@@ -659,6 +713,7 @@ G.World = (function () {
       ctx.restore();
     }
     drawPeople(ctx, vis, env);
+    drawCrabs(ctx, vis, env);
     for (const u of umbrellas) {
       if (u.x < vis.x0 - 40 || u.x > vis.x1 + 40 || u.y < vis.y0 - 40 || u.y > vis.y1 + 40) continue;
       ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(u.x + 9, u.y + 11, u.r, u.r * 0.9, 0, 0, 6.3); ctx.fill();
@@ -707,7 +762,7 @@ G.World = (function () {
   function fishingLights() { return lamps; }
 
   return {
-    PIER, DIVE, PADDLE_SPAWN, PREP_SPAWN, SPOTS, freeSpot, updateSchools, schoolAt, swimmerAt, PROM_Y1, PORT_FENCE_X, buildings,
+    PIER, DIVE, PADDLE_SPAWN, PREP_SPAWN, SPOTS, freeSpot, updateSchools, schoolAt, swimmerAt, hitTowel, peopleNow, sunbathersNow, drawPerson, PROM_Y1, PORT_FENCE_X, buildings,
     shoreY, depthAt, habitatAt, canWalk, canPaddle, inPier,
     drawSea, drawLand, drawBuoys, drawTall, fishingLights,
     lamps,

@@ -137,7 +137,7 @@ G.SHOP_LEVELS = [
   { name: 'Cartel de neón', mult: 1.18, cost: 3500 },
   { name: 'Pescadería gourmet', mult: 1.45, cost: 8000 },
 ];
-G.SUPPLIER_MULT = 0.78;
+G.SUPPLIER_MULT = 0.9;
 /* Neveras: capacidad y % de frescura que pierde cada pez por hora de juego */
 G.COOLERS = [
   { id: 'c0', name: 'Nevera de playa', cap: 3, loss: 6, price: 0 },
@@ -146,6 +146,8 @@ G.COOLERS = [
   { id: 'c3', name: 'Nevera grande', cap: 20, loss: 2, price: 700 },
   { id: 'c4', name: 'Nevera industrial', cap: 40, loss: 1.2, price: 2200 },
   { id: 'c5', name: 'Arcón frigorífico', cap: 80, loss: 0.6, price: 6500 },
+  { id: 'c6', name: 'Nevera Criogénica', cap: 120, loss: 0.3, gems: 30 },
+  { id: 'c7', name: 'Nevera Abisal', cap: 250, loss: 0.1, gems: 75 },
 ];
 G.MILESTONES = { 10: 100, 20: 400, 30: 1000, 40: 2500, 47: 10000 };
 G.SWELL_NAMES = ['Calma', 'Marejadilla', 'Marejada', 'Temporal'];
