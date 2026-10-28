@@ -30,7 +30,10 @@ G.UI = (function () {
     const mny = Math.round(S.money * 100) / 100;
     if (UI._lastMoney != null && mny > UI._lastMoney + 0.004) UI.moneyPop(mny - UI._lastMoney);
     UI._lastMoney = mny;
-    $('hGems').textContent = '💎 ' + (S.gems || 0);
+    const nr = G.Ach ? G.Ach.readyCount() : 0;
+    $('hGems').textContent = '💎 ' + (S.gems || 0) + (nr ? ' · 🏆' + nr : '');
+    $('hGems').classList.toggle('ready', nr > 0);
+    $('btnMenu').classList.toggle('dot', nr > 0);
     $('hCool').textContent = '🧊 ' + S.bag.length + '/' + G.coolerCap();
   };
   UI.moneyPop = function (d) {
@@ -279,7 +282,7 @@ G.UI = (function () {
     if (t === 'canas') return `<p class="ds" style="color:var(--mut)">Más alcance = llegas a fondos y peces más lejanos (hasta las boyas, a 200 m).</p>` + list(G.RODS, S.owned.rods, 'rods', x => `Alcance ${x.reach} m · +${x.pts} pts · aguanta ${x.cap} kg`, 'rod');
     if (t === 'hilos') return `<p class="ds" style="color:var(--mut)">Un hilo mejor suma puntos y aguanta mejor los tirones.</p>` + list(G.LINES, S.owned.lines, 'lines', x => `+${x.pts} pts · aguanta ${Math.round(100 / x.tension)}% · hasta ${x.cap} kg`, 'line');
     if (t === 'anzuelos') return `<p class="ds" style="color:var(--mut)"><b>Cuanto MENOR es el número del anzuelo, MAYOR es el pez que coge.</b> El nº 12 es para peces pequeños y el nº 1 para los más grandes. Puedes cambiar de anzuelo en Inventario → Equipo.</p>` + list(G.HOOKS, S.owned.hooks, 'hooks', x => `+${x.pts} pts · peces de ${hookRange(x)}`, 'hook');
-    if (t === 'cebos') return `<p class="ds" style="color:var(--mut)">El cebo se estropea al terminar el día: compra solo lo que vayas a usar. Mejor cebo = pica antes y atrae mejores peces.</p>` + G.BAITS.filter(b => !b.starter).map(b => `<div class="item"><div style="font-size:34px">${b.icon}</div><div class="meta"><div class="nm">${b.name} <span class="ds">(tienes ${S.baits[b.id] || 0})</span></div><div class="ds">${b.desc} +${b.pts} pts</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="5" ${can(b.price * 5) ? '' : 'disabled'}>5 · ${U.money(b.price * 5)}</button><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="20" ${can(b.pack20) ? '' : 'disabled'}>20 · ${U.money(b.pack20)}</button></div></div>`).join('');
+    if (t === 'cebos') return `<p class="ds" style="color:var(--mut)">El cebo se estropea al terminar el día: compra solo lo que vayas a usar. Mejor cebo = pica antes y atrae mejores peces.</p>` + G.BAITS.filter(b => !b.starter).map(b => `<div class="item"><div style="font-size:34px">${b.icon}</div><div class="meta"><div class="nm">${b.name} <span class="ds">(tienes ${S.baits[b.id] || 0})</span></div><div class="ds">${b.desc} +${b.pts} pts</div></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="3" ${can(b.pack3) ? '' : 'disabled'}>3 · ${U.money(b.pack3)}</button><button class="btn sm" data-act="buybait" data-v="${b.id}" data-n="20" ${can(b.pack20) ? '' : 'disabled'}>20 · ${U.money(b.pack20)}</button></div></div>`).join('');
     if (t === 'neveras') return `<p class="ds" style="color:var(--mut)">Aquí guardas lo que pescas hasta venderlo. Las mejores neveras caben más peces y los mantienen frescos más tiempo.</p>` + G.COOLERS.map((c, i) => {
       const owned = i <= S.cooler;
       return `<div class="item ${i === S.cooler ? 'on' : ''}"><div style="font-size:30px">🧊</div><div class="meta"><div class="nm">${c.name}</div><div class="ds">Caben ${c.cap} peces · pierden ${c.loss}% de frescura por hora</div></div>${c.gems ? (owned ? '<button class="btn sm ghost" disabled>Tuya</button>' : `<button class="btn sm" style="background:linear-gradient(160deg,#8a5cf0,#5a35c0)" data-act="buycooler" data-v="${i}" ${S.gems >= c.gems ? '' : 'disabled'}>💎 ${c.gems}</button>`) : priceBtn(c.price, owned, can(c.price), 'buycooler', `data-v="${i}"`)}</div>`;
@@ -361,7 +364,7 @@ G.UI = (function () {
 
   /* ----- Ajustes ----- */
   function menuBody() {
-    return `<div class="item"><div style="font-size:28px">🏆</div><div class="meta"><div class="nm">Logros</div><div class="ds">Gana gemas 💎 jugando</div></div><button class="btn sm" data-act="go" data-v="ach">Ver</button></div>
+    return `<div class="item"><div style="font-size:28px">🏆</div><div class="meta"><div class="nm">Logros</div><div class="ds">${G.Ach.readyCount() ? '¡' + G.Ach.readyCount() + ' por reclamar!' : 'Gana gemas 💎 jugando'}</div></div><button class="btn sm" data-act="go" data-v="ach">Ver</button></div>
       <div class="item"><div style="font-size:28px">📅</div><div class="meta"><div class="nm">Calendario diario</div><div class="ds">${G.Cal.canClaim() ? '¡Tienes un premio por reclamar!' : 'Vuelve mañana'}</div></div><button class="btn sm" data-act="go" data-v="cal">Ver</button></div>
       <div class="item"><div class="meta"><div class="nm">Sonido</div></div><button class="btn sm" data-act="mute">${G.S.muted ? '🔇 Activar' : '🔊 Silenciar'}</button></div>
       <div class="sec">Cómo se juega</div>
@@ -402,7 +405,7 @@ G.UI = (function () {
       G.Audio.play('buy'); UI.toast('Comprado: ' + it.name, 'good'); G.save(); return render();
     }
     if (act === 'buybait') {
-      const b = G.BAITS.find(x => x.id === d.v), n = +d.n, cost = n === 20 ? b.pack20 : b.price * n;
+      const b = G.BAITS.find(x => x.id === d.v), n = +d.n, cost = n === 20 ? b.pack20 : b.pack3;
       if (S.money < cost) return UI.toast('No tienes suficiente dinero', 'warn');
       S.money -= cost; S.baits[b.id] = (S.baits[b.id] || 0) + n; if (!S.baits[S.eq.bait]) S.eq.bait = b.id;
       G.Audio.play('buy'); G.save(); return render();

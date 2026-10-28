@@ -64,7 +64,7 @@ window.G = window.G || {};
     const sz = U.rand(0.08, 0.8);
     const cm = Math.max(sp.cm[0], Math.round(U.lerp(sp.cm[0], sp.cm[1], sz)));
     const kg = Math.max(sp.kg[0], Math.round(U.lerp(sp.kg[0], sp.kg[1], Math.pow(sz, 1.6)) * 0.97 * 1000) / 1000);
-    const value = kg * sp.eurKg, lucky = Math.random() < 0.12;
+    const value = kg * sp.eurKg * G.FISH_PRICE_MULT, lucky = Math.random() < 0.12;
     const asGems = Math.random() < 0.18;
     let amt, type;
     if (asGems) { type = 'gems'; amt = 1 + RI.indexOf(sp.rar) + (lucky ? 2 : 0) + (Math.random() < 0.4 ? 1 : 0); }

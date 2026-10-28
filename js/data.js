@@ -104,9 +104,9 @@ G.HOOKS = [
   { id: 'h5', name: 'Anzuelo nº 1', pts: 34, price: 2200, tier: 5 },
 ];
 G.BAITS = [
-  { id: 'gusano', name: 'Gusanos', pts: 2, price: 1, pack20: 17.5, icon: '🪱', tier: 1, wait: 1.55, maxRar: 1, desc: 'Baratos, pero tardan en picar y solo atraen peces comunes y poco comunes.' },
-  { id: 'sardina', name: 'Sardinas', pts: 3, price: 3, pack20: 55, icon: '🐟', tier: 2, wait: 1.0, maxRar: 3, desc: 'Calidad media: picada normal, peces comunes y raros, y alguno épico.' },
-  { id: 'cangrejo', name: 'Cangrejos', pts: 5, price: 8, pack20: 150, icon: '🦀', tier: 3, wait: 0.62, maxRar: 4, desc: 'Los mejores: pican enseguida y atraen a todas las especies.' },
+  { id: 'gusano', name: 'Gusanos', pts: 2, price: 1 / 3, pack3: 1, pack20: 5, icon: '🪱', tier: 1, wait: 1.55, maxRar: 1, desc: 'Baratos, pero tardan en picar y solo atraen peces comunes y poco comunes.' },
+  { id: 'sardina', name: 'Sardinas', pts: 3, price: 1, pack3: 3, pack20: 16, icon: '🐟', tier: 2, wait: 1.0, maxRar: 3, desc: 'Calidad media: picada normal, peces comunes y raros, y alguno épico.' },
+  { id: 'cangrejo', name: 'Cangrejos', pts: 5, price: 2.5, pack3: 7.5, pack20: 45, icon: '🦀', tier: 3, wait: 0.62, maxRar: 4, desc: 'Los mejores: pican enseguida y atraen a todas las especies.' },
 ];
 G.BAITS.push({ id: 'gusano_ini', name: 'Gusanos de aprendiz', pts: 2, icon: '🪱', tier: 1, wait: 1.55, maxRar: 1, starter: true, desc: 'Regalo de inicio: no caducan, no se pierden al acabar el día y no se pueden vender.' });
 G.RAR_ORDER = ['comun', 'poco', 'raro', 'epico', 'leyenda'];
@@ -139,6 +139,7 @@ G.SHOP_LEVELS = [
   { name: 'Pescadería gourmet', mult: 1.45, cost: 8000 },
 ];
 G.SUPPLIER_MULT = 0.9;
+G.FISH_PRICE_MULT = 2;   // multiplicador global del valor de los peces (€/kg de cada especie × esto)
 /* Neveras: capacidad y % de frescura que pierde cada pez por hora de juego */
 G.COOLERS = [
   { id: 'c0', name: 'Nevera de playa', cap: 3, loss: 6, price: 0 },
