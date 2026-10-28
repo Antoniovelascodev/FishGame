@@ -70,13 +70,26 @@ G.Ach = (function () {
   A.count = function (k, n) { const s = S(); s.cnt = s.cnt || {}; s.cnt[k] = (s.cnt[k] || 0) + (n == null ? 1 : n); };
   A.setMax = function (k, v) { const s = S(); s.cnt = s.cnt || {}; if (v > (s.cnt[k] || 0)) s.cnt[k] = v; };
   A.gems = function (n, why) { S().gems += n; G.Audio.play('gem'); if (why) G.UI.toast(why + ' · +' + n + ' 💎', 'good'); G.UI.refreshHud(); };
+  const curOf = (a) => { try { return a.cur(); } catch (e) { return 0; } };
+  /* Un logro está listo cuando cumples el objetivo, pero las gemas se cobran a mano en el panel de Logros */
+  A.ready = (a) => !A.done(a) && curOf(a) >= A.max(a);
+  A.readyCount = () => L.reduce((n, a) => n + (A.ready(a) ? 1 : 0), 0);
+  let lastReady = -1;
   A.check = function () {
-    const s = S(); s.ach = s.ach || {};
-    for (const a of L) {
-      if (s.ach[a.id]) continue;
-      let cur = 0; try { cur = a.cur(); } catch (e) { }
-      if (cur >= A.max(a)) { s.ach[a.id] = s.day; s.gems += a.gems; G.Audio.play('gem'); G.UI.toast('🏆 ' + a.name + ' · +' + a.gems + ' 💎', 'good'); G.UI.refreshHud(); G.save(); }
-    }
+    S().ach = S().ach || {};
+    const n = A.readyCount();
+    if (n !== lastReady) { lastReady = n; G.UI.refreshHud(); }
+  };
+  A.claim = function (id) {
+    const a = L.find(x => x.id === id), s = S(); s.ach = s.ach || {};
+    if (!a || !A.ready(a)) return 0;
+    s.ach[a.id] = s.day; s.gems += a.gems; return a.gems;
+  };
+  A.claimAll = function () {
+    let n = 0, g = 0;
+    for (const a of L) if (A.ready(a)) { g += A.claim(a.id); n++; }
+    if (n) { G.Audio.play('gem'); lastReady = -1; G.UI.refreshHud(); G.save(); }
+    return { n, g };
   };
   return A;
 })();
@@ -127,15 +140,23 @@ G.Cal = (function () {
     title: () => '🏆 Logros',
     body() {
       const S = G.S, L = G.Ach.list, done = L.filter(a => G.Ach.done(a));
-      const todo = L.filter(a => !G.Ach.done(a)).map(a => ({ a, r: Math.min(1, (() => { try { return a.cur(); } catch (e) { return 0; } })() / G.Ach.max(a)) })).sort((x, y) => y.r - x.r);
+      const ready = L.filter(a => G.Ach.ready(a)), pend = L.filter(a => !G.Ach.done(a) && !G.Ach.ready(a));
+      const todo = pend.map(a => ({ a, r: Math.min(1, (() => { try { return a.cur(); } catch (e) { return 0; } })() / G.Ach.max(a)) })).sort((x, y) => y.r - x.r);
       const row = (a, r, ok) => {
+        if (ok === 'ready') return `<div class="item ready"><div style="font-size:28px;width:34px;text-align:center">${a.icon}</div><div class="meta"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div></div><button class="btn sm" style="background:linear-gradient(160deg,#ffd36a,#f0a020);color:#3a2a00" data-act="ach_claim" data-v="${a.id}">💎 ${a.gems} · Reclamar</button></div>`;
         const mx = G.Ach.max(a), cur = ok ? mx : Math.min(mx, Math.floor((() => { try { return a.cur(); } catch (e) { return 0; } })() * 10) / 10);
         return `<div class="item ${ok ? 'on' : ''}"><div style="font-size:28px;width:34px;text-align:center">${ok ? '✅' : a.icon}</div><div class="meta"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div>${ok ? '' : `<div class="bar" style="margin-top:6px;height:7px"><i style="width:${Math.round(r * 100)}%"></i></div><div class="ds">${Math.min(mx, Math.floor(cur))} / ${mx}</div>`}</div><div style="text-align:center;font-weight:900;color:${ok ? '#6df0b6' : '#ffd36a'}">💎 ${a.gems}</div></div>`;
       };
       return `<div class="sum"><span>💎 Tus gemas: ${S.gems}</span><span>${done.length} / ${L.length}</span></div><div class="bar" style="margin-bottom:8px"><i style="width:${done.length / L.length * 100}%"></i></div>
+        ${ready.length ? `<div class="sec">Listos para reclamar</div>${ready.map(a => row(a, 1, 'ready')).join('')}<button class="btn primary" style="width:100%;margin:2px 0 8px;font-size:16px;padding:12px" data-act="ach_claimall">🎁 Reclamar todo (💎 ${ready.reduce((n, a) => n + a.gems, 0)})</button>` : ''}
         <div class="sec">Pendientes</div>${todo.map(x => row(x.a, x.r, false)).join('') || '<p class="ds" style="color:var(--mut)">¡Los has hecho todos!</p>'}
         <div class="sec">Completados</div>${done.map(a => row(a, 1, true)).join('') || '<p class="ds" style="color:var(--mut)">Aún ninguno. ¡A pescar!</p>'}`;
     },
+  };
+
+  UI.panels.ach.act = function (act, d) {
+    if (act === 'ach_claim') { const g = G.Ach.claim(d.v); if (g) { G.Audio.play('gem'); UI.toast('🏆 Logro reclamado · +' + g + ' 💎', 'good'); G.UI.refreshHud(); G.save(); UI.render(); } return true; }
+    if (act === 'ach_claimall') { const r = G.Ach.claimAll(); if (r.n) UI.toast('🏆 ' + r.n + ' logros · +' + r.g + ' 💎', 'good'); UI.render(); return true; }
   };
 
   UI.panels.cal = {

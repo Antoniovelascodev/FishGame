@@ -366,6 +366,21 @@ window.G = window.G || {};
     W.drawTall(ctx, vis, E);
     G.Social.draw(ctx, E);
     drawNight(ctx);
+    drawVignette(ctx);
+  }
+
+  /* Viñeta suave en los bordes para dar profundidad (se cachea el degradado) */
+  let vigG = null, vigW = 0, vigH = 0;
+  function drawVignette(c) {
+    if (G.lowQ) return;
+    const w = canvas.width, h = canvas.height;
+    if (!vigG || vigW !== w || vigH !== h) {
+      vigW = w; vigH = h;
+      vigG = c.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.38, w / 2, h / 2, Math.hypot(w, h) * 0.58);
+      vigG.addColorStop(0, 'rgba(0,12,28,0)'); vigG.addColorStop(1, 'rgba(0,12,28,0.38)');
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.fillStyle = vigG; c.fillRect(0, 0, w, h);
   }
 
   /* ---------- Bucle ---------- */

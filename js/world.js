@@ -297,13 +297,13 @@ G.World = (function () {
       if (inPier(x, y, 30) || y < G.BUOY_Y + 30) continue;
       const sp = pickSchoolSpecies(x, y);
       if (!sp) continue;
-      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 1 + (Math.random() < 0.35 ? 1 : 0);
-      s.life = 70 + Math.random() * 110; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
+      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 1 + (Math.random() < 0.5 ? 1 : 0);
+      s.life = 110 + Math.random() * 150; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
       return;
     }
     s.sp = null; s.born = t; s.life = 5;
   }
-  for (let i = 0; i < 8; i++) { const s = {}; spawnSchool(s, 0, true); schools.push(s); }
+  for (let i = 0; i < 16; i++) { const s = {}; spawnSchool(s, 0, true); schools.push(s); }
   function schoolAlpha(s, t) {
     const age = t - s.born;
     return U.clamp(Math.min(age / 4, (s.life - age) / 6), 0, 1);
