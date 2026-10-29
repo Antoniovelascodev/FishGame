@@ -102,7 +102,7 @@ G.Fish = (function () {
     return { x: G.P.x + Math.cos(a) * dm * PXM, y: G.P.y + Math.sin(a) * dm * PXM, dm };
   }
   function validTarget(p) {
-    return p.x > 30 && p.x < G.World.PORT_FENCE_X - 30 && p.y < G.World.shoreY(p.x) - 12 && p.y > G.BUOY_Y + 4 && !G.World.inPier(p.x, p.y, 6);
+    return p.x > G.World.FENCE_L + 30 && p.x < G.World.PORT_FENCE_X - 30 && p.y < G.World.shoreY(p.x) - 12 && p.y > G.BUOY_Y + 4 && !G.World.inPier(p.x, p.y, 6);
   }
 
   /* ---- Control ---- */
@@ -205,10 +205,10 @@ G.Fish = (function () {
         F.rings.push({ x: F.target.x, y: F.target.y, t: 0, life: 1.8, big: true });
         G.Audio.play('splash');
         const bt = G.BAITS.find(b => b.id === F.baitUsed) || G.BAITS[0];
-        F.waitT = U.rand(2.5, 6) * (1.05 - G.env.swell * 0.05) * bt.wait;
+        F.waitT = U.rand(5, 11) * (1.05 - G.env.swell * 0.05) * bt.wait;
         if (isNight() && G.S.owned.extras.includes('lampara')) F.waitT *= 0.8;
-        if (F.school) F.waitT *= 0.5;
-        if (F.barren) F.waitT = U.rand(4, 6);
+        if (F.school) F.waitT *= 0.55;
+        if (F.barren) F.waitT = U.rand(6, 9);
         G.UI.fishHud({ phase: 'wait' });
       }
     } else if (st === 'wait') {
@@ -216,16 +216,16 @@ G.Fish = (function () {
       if (Math.random() < dt * 0.9) F.rings.push({ x: F.target.x + U.rand(-4, 4), y: F.target.y + U.rand(-3, 3), t: 0, life: 1.4 });
       if (F.waitT <= 0) {
         if (F.barren) { G.UI.toast('No se mueve nada… aquí no hay peces. Busca sombras en el agua 👀', 'warn'); F.retrieve(true); return; }
-        if (Math.random() < 0.03 + 0.02 * G.env.swell) { hookTrash(); return; }
+        if (Math.random() < 0.06 + 0.035 * G.env.swell) { hookTrash(); return; }
         const sp = pickSpecies(F.target.x, F.target.y, F.school);
         if (!sp) {
           F.emptyTries++;
           if (F.emptyTries >= 3) { G.UI.toast('Aquí no pica nada con este cebo y anzuelo. Prueba otro anzuelo, cebo o lugar.', 'warn'); F.retrieve(true); return; }
-          F.waitT = U.rand(3, 5); return;
+          F.waitT = U.rand(5, 9); return;
         }
         const sizeF = makeSize(sp);
         F.cur = { sp, sizeF, info: gearPoints(sp, sizeF), cm: Math.round(U.lerp(sp.cm[0], sp.cm[1], sizeF)), kg: Math.round(U.lerp(sp.kg[0], sp.kg[1], Math.pow(sizeF, 1.6)) * 100) / 100 };
-        F.state = 'nibble'; F.nibT = U.rand(0.7, 1.3); F.nibTick = 0;
+        F.state = 'nibble'; F.nibT = U.rand(0.9, 1.7); F.nibTick = 0;
         G.UI.fishHud({ phase: 'nibble' });
       }
     } else if (st === 'nibble') {
@@ -382,7 +382,7 @@ G.Fish = (function () {
       const sp = c.sp, s = c.sizeF;
       const cm = Math.round(U.lerp(sp.cm[0], sp.cm[1], s));
       const kg = Math.round(U.lerp(sp.kg[0], sp.kg[1], Math.pow(s, 1.6)) * 1000) / 1000;
-      const value = Math.round(kg * sp.eurKg * G.FISH_PRICE_MULT * U.rand(0.92, 1.08) * 100) / 100;
+      const value = Math.round(kg * sp.eurKg * U.rand(0.92, 1.08) * 100) / 100;
       const catchObj = { id: U.uid(), sp: sp.id, cm, kg, value, day: G.S.day };
       F.landed(catchObj);
     } else {

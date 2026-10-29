@@ -4,9 +4,9 @@ window.G = window.G || {};
 G.Stall = (function () {
   const U = G.U;
   const ST = {};
-  const B = { x: 1300, y: 1480, w: 210, h: 150 };       // el edificio (ver world.js)
-  const COUNTER = { x: 1405, y: 1643 };                  // mostrador en la cara sur, junto al parking
-  const BAY_Y = 1680, BAY_X0 = 1322, BAY_DX = 36, LANE_Y = 1750;
+  const B = { x: G.World.STALL_X, y: 1480, w: 210, h: 150 };       // el edificio (ver world.js)
+  const COUNTER = { x: B.x + 105, y: 1643 };                  // mostrador en la cara sur, junto al parking
+  const BAY_Y = 1680, BAY_X0 = B.x + 22, BAY_DX = 36, LANE_Y = 1750;
   const MAXSLOTS = 30, MAXBAYS = 6;
   const AC_LOSS = [2.0, 1.4, 0.9, 0.5, 0.25];          // % de frescura que pierde el pescado por hora
   const UPG = {
@@ -115,7 +115,7 @@ G.Stall = (function () {
     if (!n) { ST.pops.push({ x: COUNTER.x, y: COUNTER.y - 8, t: 0, text: '😕', col: '#fff' }); return; }
     total = Math.round(total * 100) / 100;
     G.S.money = Math.round((G.S.money + total) * 100) / 100; G.S.stats.earned += total;
-    ST.pops.push({ x: v.bx > 1300 ? COUNTER.x + (Math.random() * 40 - 20) : COUNTER.x, y: COUNTER.y - 6, t: 0, text: '+' + U.money(total), col: '#7dffb0' });
+    ST.pops.push({ x: v.bx > B.x ? COUNTER.x + (Math.random() * 40 - 20) : COUNTER.x, y: COUNTER.y - 6, t: 0, text: '+' + U.money(total), col: '#7dffb0' });
     G.Audio.play('coin'); G.Ach.check(); G.UI.refreshHud(); G.save();
   }
 

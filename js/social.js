@@ -52,7 +52,25 @@ G.Social = (function () {
     'You are standing on my crisps, friend. Salt and vinegar. Very rare here.', 'I did not come to Spain to be stepped on by a fisherman!',
     'Do you have sunscreen? Mine is melting with the ice cream.', 'Quiero... tumbona. Tumbona! No, hamaca? Ugh.', 'Mi cerveza, mi toalla, mi sol. Leave me alone, amigo.', 'This is the life! Ole!', 'I am on holiday! Do not disturb! No molestar!',
   ];
-  function pickMsg(list, guiri) { return Math.random() < 0.45 ? U.pick(guiri) : U.pick(list); }
+  /* Playa naturista: aquí se enfadan por otra cosa */
+  const NUDE = [
+    '¡Pero guarro, no me mires las tetas!', '¡Eh, tú! Los ojos pa\' la caña, no pa\' mí', 'Aquí se viene a broncearse, no a mirar, pisha', '¡Que te he visto, guarro!',
+    '¡Mira pa\' otro lao, quillo!', 'Hay un cartel, ¿eh? Pues eso: respeto', 'Illo, el anzuelo se queda en el agua, no en mi toalla', '¡Cacho de salido!',
+    'Disimula, hombre, disimula…', 'Aquí el único que pica es el pescao', 'Ni se te ocurra sacarme una foto, zagal', 'Ese pez que buscas no está aquí, pervertío',
+    '¿No tenías que estar pescando, mirón?', 'Qué vergüenza, madre mía… ¡y lo que me queda!', 'Tira pa\' tu caña y déjame en bolas tranquilo', '¡Que me estás poniendo colorao… y no es el sol!',
+    'Anda, ve a mirar el faro, que es más bonito', 'Mi arma, ¡qué poca vergüenza!', 'Esto es una playa familiar… de mi familia, vamos', '¡Quillo, que me tapo con el sombrero!',
+  ];
+  const NUDE_GUIRI = [
+    'Oh my God, naked people! This is not in the brochure!', 'Honey, do not look! ...Okay, a little look.', 'In England we keep our clothes on, you know!',
+    'Is this the Spanish way to get a tan? I love it!', 'Excuse me, I think I am overdressed. And lost.', 'My wife is going to kill me. Worth it!',
+    'Mate, where are the sandwiches? And the trousers?', 'I only came for the fish, I swear!',
+  ];
+  const inNude = (x) => G.World.zoneAt(x).beach === 'nude';
+  function pickMsg(list, guiri, x) {
+    if (x != null && inNude(x)) return Math.random() < 0.28 ? U.pick(NUDE_GUIRI) : U.pick(NUDE);
+    return Math.random() < 0.45 ? U.pick(guiri) : U.pick(list);
+  }
+  let nudeT = 3;
   function say(x, y, text) {
     for (let i = bubbles.length - 1; i >= 0; i--) if (Math.hypot(bubbles[i].x - x, bubbles[i].y - y) < 30) bubbles.splice(i, 1);
     bubbles.push({ x, y, text, t: 0, life: 2.7 });
@@ -71,6 +89,15 @@ G.Social = (function () {
     // el retroceso visual se va apagando
     if (P.kx || P.ky) { const k = Math.max(0, 1 - dt * 9); P.kx *= k; P.ky *= k; if (Math.abs(P.kx) < 0.05) P.kx = 0; if (Math.abs(P.ky) < 0.05) P.ky = 0; }
     for (const b of bubbles) b.t += dt;
+    // en la playa naturista te vigilan aunque no choques con nadie
+    if (!S.onPaddle && !(G.Dive && G.Dive.active) && inNude(P.x)) {
+      nudeT -= dt;
+      if (nudeT <= 0) {
+        nudeT = 3.5 + Math.random() * 4;
+        const near = W.sunbathersNow(E.hour).filter(tw => tw.nude && Math.hypot(tw.x - P.x, tw.y - P.y) < 120);
+        if (near.length) { const tw = U.pick(near); say(tw.x, tw.y - 18, pickMsg(LIE, LIE_GUIRI, tw.x)); }
+      }
+    }
     while (bubbles.length && bubbles[0].t > bubbles[0].life) bubbles.shift();
     if (S.onPaddle || P.act || (G.Dive && G.Dive.active)) return;
     // choque con gente que pasea
@@ -85,7 +112,7 @@ G.Social = (function () {
       p.lastBump = E.t;
       shove(P, dx, dy, 11);
       p.sx = -dx / (d || 1) * 22; p.sy = -dy / (d || 1) * 22; p.st = E.t;
-      say(r.x, r.y - 16, pickMsg(WALK, GUIRI));
+      say(r.x, r.y - 16, pickMsg(WALK, GUIRI, r.x));
     }
   }
 
@@ -98,7 +125,7 @@ G.Social = (function () {
     if (E.t - (lastTowel.get(tw) || -99) < 3) return;
     lastTowel.set(tw, E.t);
     G.Audio.play('bump'); P.kx = (P.x - tw.x) * 0.25; P.ky = (P.y - tw.y) * 0.25; P.stun = 0.25;
-    say(tw.x, tw.y - 18, pickMsg(LIE, LIE_GUIRI));
+    say(tw.x, tw.y - 18, pickMsg(LIE, LIE_GUIRI, tw.x));
   }
 
   function draw(ctx) {

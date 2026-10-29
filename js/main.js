@@ -63,7 +63,7 @@ window.G = window.G || {};
     G.env.hour = S.time = S.plan.start; updateNight();
     if (!S.baits[S.eq.bait]) { const alt = G.BAITS.find(b => S.baits[b.id] > 0); if (alt) S.eq.bait = alt.id; }
     G.Fish.state = 'idle'; G.UI.fishHud(null);
-    G.travel('malagueta');
+    G.travel(W.nearestSpot(G.P.x).id);
     G.Audio.setSwell(S.swell);
     G.UI.toast('☀️ Día ' + S.day + ' · ' + G.SWELL_NAMES[S.swell] + ' · ¡A pescar!', 'good');
     G.UI.refreshHud(); G.save();
@@ -107,7 +107,8 @@ window.G = window.G || {};
     // tiendas físicas del paseo
     const sh = W.buildings.find(b => b.label && p.x > b.x - 6 && p.x < b.x + b.w + 6 && p.y > W.PROM_Y1 - 120);
     if (sh) {
-      const gear = ['bait', 'rods', 'spear', 'paddle', 'kayak'].includes(sh.kind);
+      if (sh.kind === 'castle') return { label: '🏰 Castillo Sohail', run: () => G.UI.toast('🏰 Castillo de Sohail (s. X): fortaleza mora sobre el cerro de Fuengirola. ¡Qué vistas!', 'good') };
+      const gear = ['bait', 'rods', 'spear', 'paddle', 'kayak', 'animal'].includes(sh.kind);
       if (!G.shopOpen(sh.kind)) return { label: '🔒 Cerrado', run: () => G.UI.toast(gear ? 'Esta tienda abre de 9:00 a 18:00' : 'Las tiendas abren cuando termina la jornada', 'warn') };
       if (sh.kind === 'stall') return { label: '🏪 Entrar: Tu pescadería', run: () => G.UI.open('stall') };
       if (G.Fish.locked()) return null;
@@ -117,7 +118,8 @@ window.G = window.G || {};
     if (S.onPaddle) {
       return W.shoreY(p.x) - p.y < 90 ? { label: '🚶 Bajar de la tabla', run: disembark } : null;
     }
-    if (U.dist(p.x, p.y, W.DIVE.x, W.DIVE.y) < 80) return { label: '🤿 Bucear', run: () => G.Dive.begin() };
+    const dv = W.DIVES.find(d => U.dist(p.x, p.y, d.x, d.y) < 80);
+    if (dv) return { label: '🤿 Bucear', run: () => { W.DIVE.x = dv.x; W.DIVE.y = dv.y; G.Dive.begin(); } };
     const b = S.board || W.PADDLE_SPAWN;
     if (S.owned.extras.includes('paddle') && U.dist(p.x, p.y, b.x, b.y) < 80) return { label: '🏄 Subir a la tabla', run: boardUp };
     return null;
@@ -206,14 +208,11 @@ window.G = window.G || {};
     G.UI.setCtx(c ? c.label : null);
 
     // lugar actual
-    let spot = 'Málaga';
-    if (P.y > 1330) spot = S.phase === 'prep' ? 'Paseo marítimo · Tiendas' : 'Paseo marítimo';
-    else if (S.onPaddle) spot = `🏄 En la tabla · ${Math.round(W.depthAt(P.x, P.y))} m de la orilla`;
-    else if (W.inPier(P.x, P.y, 4)) spot = 'Espigón de Pedregalejo';
-    else if (P.x < 950) spot = 'Playa de La Malagueta · Arena';
-    else if (P.x < 1580) spot = 'Rocas del Peñón · Roca';
-    else if (P.x < 1700) spot = 'Pedregalejo';
-    else spot = 'Playa de El Palo · Posidonia';
+    const zn = W.zoneAt(P.x);
+    let spot = zn.name;
+    if (S.onPaddle) spot = `🏄 En la tabla · ${Math.round(W.depthAt(P.x, P.y))} m de la orilla`;
+    else if (W.inPier(P.x, P.y, 4)) spot = 'Espigón en T';
+    else if (P.y > 1330 && S.phase === 'prep' && zn.prom === 'paseo') spot = zn.name + ' · Tiendas';
     G.UI.setSpot(spot);
     G.UI.syncButtons();
 
@@ -366,21 +365,6 @@ window.G = window.G || {};
     W.drawTall(ctx, vis, E);
     G.Social.draw(ctx, E);
     drawNight(ctx);
-    drawVignette(ctx);
-  }
-
-  /* Viñeta suave en los bordes para dar profundidad (se cachea el degradado) */
-  let vigG = null, vigW = 0, vigH = 0;
-  function drawVignette(c) {
-    if (G.lowQ) return;
-    const w = canvas.width, h = canvas.height;
-    if (!vigG || vigW !== w || vigH !== h) {
-      vigW = w; vigH = h;
-      vigG = c.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.38, w / 2, h / 2, Math.hypot(w, h) * 0.58);
-      vigG.addColorStop(0, 'rgba(0,12,28,0)'); vigG.addColorStop(1, 'rgba(0,12,28,0.38)');
-    }
-    c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = vigG; c.fillRect(0, 0, w, h);
   }
 
   /* ---------- Bucle ---------- */
