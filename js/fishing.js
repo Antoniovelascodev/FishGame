@@ -111,7 +111,6 @@ G.Fish = (function () {
     if (G.P.act) return;
     if (st === 'idle') {
       if (G.UI.modalOpen()) return;
-      if (G.S.phase !== 'day') { G.UI.toast('Primero empieza la jornada: ▶ Empezar día', 'warn'); return; }
       if (!G.S.baits[G.S.eq.bait] || G.S.baits[G.S.eq.bait] <= 0) {
         // buscar otro cebo
         const alt = G.BAITS.find(b => G.S.baits[b.id] > 0);

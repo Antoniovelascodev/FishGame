@@ -53,7 +53,7 @@ G.Stall = (function () {
   ST.remove = (id) => { const s = st(); const i = s.slots.findIndex(l => l.id === id); if (i < 0) return null; if (s.slots[i].res) return null; const l = s.slots[i]; s.slots.splice(i, 1); return l; };
   ST.reset = () => { for (const l of st().slots) l.res = 0; ST.visits.length = 0; };
 
-  /* Avance del tiempo de juego (solo durante la jornada) */
+  /* Avance del tiempo de juego  */
   ST.tick = function (hrs) {
     const s = st(); if (!s.slots.length) return;
     const loss = lossPerHour() * hrs;

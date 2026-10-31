@@ -156,12 +156,12 @@ G.Dive = (function () {
     if (st.air < 25 && st.lvl > 0) log('⚠️ Te queda poco aire. Sube a respirar.', 'bad');
     render();
   }
-  /* Sin aire en el mar: te sacan los socorristas, termina el día y pagas el rescate */
+  /* Sin aire en el mar: te sacan los socorristas, pagas el rescate */
   function rescue() {
     D.active = false; st = null;
     $('dive').classList.add('hidden'); $('dive').innerHTML = '';
     G.save();
-    G.endDay(true, true);
+    G.rescue();
   }
   function copyIcon(src) {
     const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.style.width = src.style.width; c.style.height = src.style.height;
