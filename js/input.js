@@ -40,6 +40,7 @@ G.Input = (function () {
   // Teclado (para probar en PC)
   const keyMap = { ArrowLeft: 'l', a: 'l', A: 'l', ArrowRight: 'r', d: 'r', D: 'r', ArrowUp: 'u', w: 'u', W: 'u', ArrowDown: 'd', s: 'd', S: 'd' };
   window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
     const k = keyMap[e.key];
     if (k) { I.keys[k] = true; e.preventDefault(); }
   });
