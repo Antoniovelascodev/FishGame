@@ -12,7 +12,7 @@ window.G = window.G || {};
     bag: [], album: {}, shopLevel: 0, milestones: [],
     stats: { casts: 0, fish: 0, earned: 0, dives: 0, trash: 0 },
     pos: { x: 2945, y: 1420 }, onPaddle: false, board: null, worldV: 2,
-    tutorial: 0, muted: false,
+    tutorial: 0, muted: false, codes: [],
   });
 
   G.newState = def;

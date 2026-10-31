@@ -408,6 +408,7 @@ window.G = window.G || {};
   btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up);
   $('btnCtx').addEventListener('click', () => { if (G.ctxRun) G.ctxRun(); });
   document.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') { if (e.key === 'Enter') { const b = document.querySelector('[data-act="redeem"]'); if (b) b.click(); } return; }
     if (e.repeat) return;
     if (e.code === 'Space') { e.preventDefault(); G.Input.castHeld = true; if (!G.UI.modalOpen() && !G.Interior.active) G.Fish.press(); }
     else if (e.key === 'i' || e.key === 'I') G.UI.open('inv');

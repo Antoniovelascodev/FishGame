@@ -370,6 +370,8 @@ G.UI = (function () {
     return `<div class="item"><div style="font-size:28px">🏆</div><div class="meta"><div class="nm">Logros</div><div class="ds">Gana gemas 💎 jugando</div></div><button class="btn sm" data-act="go" data-v="ach">Ver</button></div>
       <div class="item"><div style="font-size:28px">📅</div><div class="meta"><div class="nm">Calendario diario</div><div class="ds">${G.Cal.canClaim() ? '¡Tienes un premio por reclamar!' : 'Vuelve mañana'}</div></div><button class="btn sm" data-act="go" data-v="cal">Ver</button></div>
       <div class="item"><div class="meta"><div class="nm">Sonido</div></div><button class="btn sm" data-act="mute">${G.S.muted ? '🔇 Activar' : '🔊 Silenciar'}</button></div>
+      <div class="sec">Código de regalo</div>
+      <div class="item"><input id="codeIn" class="codein" type="text" placeholder="Escribe tu código" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24"><button class="btn sm" data-act="redeem">Canjear</button></div>
       <div class="sec">Cómo se juega</div>
       <div class="item"><div class="meta ds" style="font-size:13.5px;color:#fff;line-height:1.5">
       🕹️ Arrastra a la izquierda para moverte.<br>🎣 Mantén <b>LANZAR</b> y suéltalo: cuanto más tarde, más lejos. Mueve el joystick para apuntar.<br>
@@ -463,6 +465,17 @@ G.UI = (function () {
       S.money -= nx.cost; S.shopLevel++; G.Audio.play('buy'); UI.toast('¡Tu pescadería mejora: ' + nx.name + '!', 'good'); G.save(); return render();
     }
     if (act === 'travel') { close(); G.travel(d.v); return; }
+    if (act === 'redeem') {
+      const inp = document.getElementById('codeIn'), code = ((inp && inp.value) || '').trim().toUpperCase();
+      if (!code) return UI.toast('Escribe un código primero', 'warn');
+      const gift = G.GIFT_CODES[code];
+      if (!gift) return UI.toast('Código no válido', 'warn');
+      S.codes = S.codes || [];
+      if (S.codes.includes(code)) return UI.toast('Ya has canjeado este código', 'warn');
+      S.codes.push(code);
+      if (gift.money) S.money = Math.round((S.money + gift.money) * 100) / 100;
+      G.Audio.play('coin'); UI.toast('🎁 ¡Código canjeado! +' + U.money(gift.money), 'good'); UI.refreshHud(); G.save(); return render();
+    }
     if (act === 'mute') { G.Audio.setMuted(!S.muted); return render(); }
     if (act === 'reset') {
       if (ms.confirmReset) { G.resetGame(); location.reload(); return; }
