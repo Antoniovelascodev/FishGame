@@ -45,71 +45,58 @@ window.G = window.G || {};
     G.env.warm = Math.max(wk(19.2, 1.8), wk(7.2, 1.3));
   }
   G.addTime = function (hrs) {
-    if (G.S.phase !== 'day') return;
-    G.env.hour = (G.env.hour + hrs) % 24;
+    const prev = G.env.hour;
+    G.env.hour = (prev + hrs) % 24;
     G.S.elapsed += hrs;
     G.spoilBag(hrs);
     G.S.time = G.env.hour; updateNight();
     G.S.gt = (G.S.gt || 0) + hrs;
     G.Stall.tick(hrs);
+    if (G.env.hour < prev) newDay();
   };
 
-  /* Empieza la jornada con la hora y duración elegidas */
-  G.startDay = function () {
+  /* Medianoche: cambia el día (nuevo encargo del marinero y el mar puede cambiar) */
+  function newDay() {
     const S = G.S;
-    if (S.phase !== 'prep') return;
-    S.phase = 'day'; S.dayHours = S.plan.dur; S.elapsed = 0; S.dayLog = { fish: 0 };
-    dayWarned = false;
-    G.env.hour = S.time = S.plan.start; updateNight();
-    if (!S.baits[S.eq.bait]) { const alt = G.BAITS.find(b => S.baits[b.id] > 0); if (alt) S.eq.bait = alt.id; }
-    G.Fish.state = 'idle'; G.UI.fishHud(null);
-    G.travel(W.nearestSpot(G.P.x).id);
-    G.Audio.setSwell(S.swell);
-    G.UI.toast('☀️ Día ' + S.day + ' · ' + G.SWELL_NAMES[S.swell] + ' · ¡A pescar!', 'good');
-    G.UI.refreshHud(); G.save();
-  };
-
-  /* Termina la jornada: vuelves al paseo, el cebo se estropea y ya puedes vender */
-  function endDay(early, rescue) {
-    const S = G.S, P = G.P;
-    if (S.phase !== 'day') return;
-    if (G.Fish.state !== 'idle') { G.Fish.state = 'idle'; G.Fish.cur = null; G.Fish.rings.length = 0; G.UI.fishHud(null); }
-    if (S.onPaddle) { S.board = { x: P.x, y: W.shoreY(P.x) + 36 }; S.onPaddle = false; }
-    let lost = 0; for (const b of G.BAITS) { if (b.starter) continue; lost += S.baits[b.id] || 0; S.baits[b.id] = 0; }
-    let fee = 0;
-    let lostFish = 0;
-    if (rescue) { G.Ach.count('rescued'); fee = Math.round(S.money * 50) / 100; S.money = Math.round((S.money - fee) * 100) / 100; lostFish = S.bag.length; S.bag = []; }
-    S.phase = 'prep'; S.day++;
+    S.day++; S.dayLog = { fish: 0 };
     S.swell = U.clamp(S.swell + U.pick([-1, 0, 0, 1, 1]), 0, 3);
     G.Audio.setSwell(S.swell);
-    G.env.hour = S.time = 12; updateNight();
-    P.x = W.PREP_SPAWN.x; P.y = W.PREP_SPAWN.y; P.ang = -Math.PI / 2; cam.x = P.x; cam.y = P.y;
-    let tot = 0; S.bag.forEach(f => tot += G.fishValue(f));
-    G.save(); G.UI.refreshHud();
-    G.UI.showMsg(rescue ? '🚨 ¡Rescate en el mar!' : early ? '🏁 Jornada terminada' : '🌅 Fin de la jornada',
-      `${rescue ? `Te quedaste sin aire y los socorristas tuvieron que sacarte del agua. Pagas el rescate: −${U.money(fee)} (el 50% de tu dinero)${lostFish ? ` y pierdes los ${lostFish} peces de la nevera` : ''}. La jornada termina aquí.<br>` : ''}Has pescado ${S.dayLog.fish} peces. En la nevera llevas ${S.bag.length} (valor actual ${U.money(tot)}).<br>${lost ? `🪱 ${lost} cebos sobrantes se han echado a perder.<br>` : ''}Vende en el mercadillo (te la juegas a los dados) o en la lonja (precio fijo), compra material y prepara el siguiente día.`);
+    G.save();
   }
-  G.endDay = endDay;
+
+  /* Sin aire en el mar: te sacan los socorristas, pagas el rescate y apareces en el paseo */
+  G.rescue = function () {
+    const S = G.S, P = G.P;
+    if (G.Fish.state !== 'idle') { G.Fish.state = 'idle'; G.Fish.cur = null; G.Fish.rings.length = 0; G.UI.fishHud(null); }
+    if (S.onPaddle) { S.board = { x: P.x, y: W.shoreY(P.x) + 36 }; S.onPaddle = false; }
+    G.Ach.count('rescued');
+    const fee = Math.round(S.money * 50) / 100, lostFish = S.bag.length;
+    S.money = Math.round((S.money - fee) * 100) / 100; S.bag = [];
+    P.x = W.PREP_SPAWN.x; P.y = W.PREP_SPAWN.y; P.ang = -Math.PI / 2; cam.x = P.x; cam.y = P.y;
+    G.save(); G.UI.refreshHud();
+    G.UI.showMsg('🚨 ¡Rescate en el mar!', `Te quedaste sin aire y los socorristas tuvieron que sacarte del agua. Pagas el rescate: −${U.money(fee)} (el 50% de tu dinero)${lostFish ? ` y pierdes los ${lostFish} peces de la nevera` : ''}.`);
+  };
+
+  /* Botón de tiendas: te lleva al paseo con las tiendas */
   G.dayButton = function () {
     if (G.UI.modalOpen()) return;
-    if (G.S.phase === 'prep') { G.UI.open('plan'); return; }
     if (G.Fish.locked()) { G.UI.toast('Estás pescando: termina primero 🎣', 'warn'); return; }
-    G.UI.confirm('¿Terminar la jornada?', 'Volverás al paseo para vender lo pescado. Los cebos que te sobren se estropearán.', 'Terminar', () => endDay(true));
+    G.travel('tiendas');
+    G.UI.toast('🏪 Paseo de las tiendas', 'good');
   };
-  let dayWarned = false;
 
   /* ---------- Contexto: buceo, paddle ---------- */
   function ctxAction() {
     if (G.Fish.busy()) return null;
     const S = G.S, p = G.P;
     // el marinero del puerto
-    if (S.phase === 'prep' && G.Sailor.near(p)) return { label: '⚓ Hablar con el marinero', run: () => G.UI.open('sailor') };
+    if (G.Sailor.near(p)) return { label: '⚓ Hablar con el marinero', run: () => G.UI.open('sailor') };
     // tiendas físicas del paseo
     const sh = W.buildings.find(b => b.label && p.x > b.x - 6 && p.x < b.x + b.w + 6 && p.y > W.PROM_Y1 - 120);
     if (sh) {
       if (sh.kind === 'castle') return { label: '🏰 Castillo Sohail', run: () => G.UI.toast('🏰 Castillo de Sohail (s. X): fortaleza mora sobre el cerro de Fuengirola. ¡Qué vistas!', 'good') };
       const gear = ['bait', 'rods', 'spear', 'paddle', 'kayak', 'animal'].includes(sh.kind);
-      if (!G.shopOpen(sh.kind)) return { label: '🔒 Cerrado', run: () => G.UI.toast(gear ? 'Esta tienda abre de 9:00 a 18:00' : 'Las tiendas abren cuando termina la jornada', 'warn') };
+      if (!G.shopOpen(sh.kind)) return { label: '🔒 Cerrado', run: () => G.UI.toast('Esta tienda está cerrada', 'warn') };
       if (sh.kind === 'stall') return { label: '🏪 Entrar: Tu pescadería', run: () => G.UI.open('stall') };
       if (G.Fish.locked()) return null;
       return { label: '🚪 Entrar: ' + sh.label.split(' · ')[0], run: () => G.Interior.enter(sh.kind) };
@@ -121,7 +108,6 @@ window.G = window.G || {};
       const ws = W.wormNear(p);
       if (ws) return { label: '🪨 Mover piedras', run: () => { const n = W.digWorms(ws); if (n) { giveBait('gusano', n); G.UI.toast(`🪱 ¡Has encontrado ${n} gusano${n > 1 ? 's' : ''}!`, 'good'); } else G.UI.toast('Solo había arena y una lapa…', 'warn'); } };
     }
-    if (S.phase !== 'day') return null;
     if (S.onPaddle) {
       return W.shoreY(p.x) - p.y < 90 ? { label: '🚶 Bajar de la tabla', run: disembark } : null;
     }
@@ -147,6 +133,7 @@ window.G = window.G || {};
     if (G.Fish.busy()) { G.Fish.state = 'idle'; G.UI.fishHud(null); }
     G.S.onPaddle = false;
     if (id === 'dive') { G.P.x = W.DIVE.x; G.P.y = W.DIVE.y - 10; }
+    else if (id === 'tiendas') { G.P.x = W.PREP_SPAWN.x; G.P.y = W.PREP_SPAWN.y; }
     else { const s = W.SPOTS.find(x => x.id === id); G.P.x = s.x; G.P.y = s.y; }
     const fs = W.freeSpot(G.P.x, G.P.y); G.P.x = fs.x; G.P.y = fs.y;
     G.P.ang = -Math.PI / 2;
@@ -165,20 +152,8 @@ window.G = window.G || {};
     if (paused) return;
     if (G.Interior.active) { G.Interior.update(dt); return; }
 
-    // reloj: 1 hora de juego = 15 s (solo durante la jornada)
-    if (S.phase === 'day') {
-      G.addTime(dt / 15);
-      const left = S.dayHours - S.elapsed;
-      if (!dayWarned && left <= 1 && left > 0) { dayWarned = true; G.UI.toast('⏳ Queda 1 hora de jornada'); }
-      if (left <= 0 && !G.Fish.locked() && !G.Dive.active) {
-        if (G.Fish.state !== 'idle') G.Fish.retrieve(true);
-        G.UI.choose('⏰ Se acabó el tiempo', 'Has pescado ' + S.dayLog.fish + ' peces. ¿Quieres terminar la jornada para vender o seguir pescando sin perder el ritmo?', [
-          ['🎣 Seguir jornada (+12 h)', () => { S.dayHours += 12; dayWarned = false; G.UI.toast('Sigues pescando 12 horas más', 'good'); }],
-          ['🏁 Terminar y vender', () => endDay(false)],
-        ]);
-        return;
-      }
-    }
+    // reloj continuo: 1 hora de juego = 15 s
+    G.addTime(dt / 15);
     W.updateSchools(E.t, G.Fish.state !== 'idle' ? G.Fish.target : null);
     G.UI.syncDayButton();
 
@@ -219,12 +194,12 @@ window.G = window.G || {};
     let spot = zn.name;
     if (S.onPaddle) spot = `🏄 En la tabla · ${Math.round(W.depthAt(P.x, P.y))} m de la orilla`;
     else if (W.inPier(P.x, P.y, 4)) spot = 'Espigón en T';
-    else if (P.y > 1330 && S.phase === 'prep' && zn.prom === 'paseo') spot = zn.name + ' · Tiendas';
+    else if (P.y > 1330 && zn.prom === 'paseo') spot = zn.name + ' · Tiendas';
     G.UI.setSpot(spot);
     G.UI.syncButtons();
 
     // tutorial
-    if (S.phase === 'day' && S.tutorial === 0 && W.shoreY(P.x) - P.y < 60 && P.y < W.shoreY(P.x) + 100) { S.tutorial = 1; G.UI.toast('Mantén 🎣 LANZAR y suelta para lanzar al mar. Mueve el joystick para apuntar.'); }
+    if (S.tutorial === 0 && W.shoreY(P.x) - P.y < 60 && P.y < W.shoreY(P.x) + 100) { S.tutorial = 1; G.UI.toast('Mantén 🎣 LANZAR y suelta para lanzar al mar. Mueve el joystick para apuntar.'); }
     if (S.tutorial === 1 && G.Fish.state === 'bite') { S.tutorial = 2; G.UI.toast('¡Pica! Pulsa ⚡ ¡CLAVAR! rápido', 'good'); }
     if (S.tutorial === 2 && G.Fish.state === 'fight') { S.tutorial = 3; G.UI.toast('Mantén 🌀 RECOGE. Si el pez tira (⚠️), ¡suelta!', 'good'); }
 
@@ -428,7 +403,6 @@ window.G = window.G || {};
   function start() {
     G.TEX.init(ctx);
     const had = G.load();
-    if (G.S.phase === 'prep') { G.S.time = 12; if (G.S.pos.y < 1330) G.S.pos = { x: W.PREP_SPAWN.x, y: W.PREP_SPAWN.y }; }
     G.env.hour = G.S.time; G.env.swell = G.env.swellF = G.S.swell; updateNight();
     G.P.x = G.S.pos.x; G.P.y = G.S.pos.y;
     if (G.S.onPaddle && !W.canPaddle(G.P.x, G.P.y)) G.S.onPaddle = false;
@@ -448,7 +422,7 @@ window.G = window.G || {};
     G.Audio.unlock(); G.Audio.setSwell(G.S.swell);
     $('title').classList.add('hidden');
     if (G.Cal.canClaim()) setTimeout(() => { if (!G.UI.modalOpen()) G.UI.open('cal'); }, 700);
-    if (G.S.phase === 'prep' && G.S.tutorial === 0) G.UI.toast('🏪 Tienes 25 gusanos de aprendiz; en El Cebo hay más y pulsa ▶ Empezar día');
+    if (G.S.tutorial === 0) G.UI.toast('🎣 Tienes 25 gusanos de aprendiz. Ve al mar y lanza la caña; el botón 🏪 te lleva a las tiendas.');
   });
   $('btnNew').addEventListener('click', () => { if (confirm('¿Borrar la partida y empezar de nuevo?')) { G.resetGame(); location.reload(); } });
 

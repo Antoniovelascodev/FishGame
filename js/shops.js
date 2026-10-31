@@ -77,7 +77,7 @@ window.G = window.G || {};
     return s.sailor;
   };
   Sailor.anim = null;
-  Sailor.visible = () => G.S.phase === 'prep' && (!Sailor.quest().done || !!Sailor.anim);
+  Sailor.visible = () => (!Sailor.quest().done || !!Sailor.anim);
   Sailor.near = (P) => Sailor.visible() && !Sailor.anim && !Sailor.quest().done && Math.hypot(P.x - POS.x, P.y - POS.y) < 80;
   const rewardText = (q) => q.type === 'gems' ? '💎 ' + q.amt + ' gemas' : '💶 ' + U.money(q.amt);
   Sailor.matches = function (q) {
@@ -97,7 +97,7 @@ window.G = window.G || {};
       let h = `<div class="card" style="margin-bottom:10px"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:44px">👨‍✈️</div><div style="line-height:1.4">${q.lucky ? '¡Grumete! Hoy pago de lujo: ' : '¡Ey, grumete! '}Necesito <b>${sp.name.toLowerCase()}</b> de al menos <b>${q.cm} cm</b> y <b>${U.kg(q.kg)}</b>. Te daré <b style="color:#ffd36a">${rewardText(q)}</b>${q.lucky ? ' (¡y es un pastón!)' : ''}.</div></div></div>`;
       h += `<div style="display:flex;justify-content:center;margin:4px 0 8px">${UI.fishPh(sp.id, 150, !G.S.album[sp.id])}</div>`;
       h += `<div class="ds" style="text-align:center;color:var(--mut);margin-bottom:8px">Un encargo al día: se entrega y listo hasta mañana.</div>`;
-      if (!ms.length) h += `<p class="ds" style="text-align:center;color:var(--mut)">No llevas ${sp.name.toLowerCase()} en la nevera. Sal a buscarlo y vuelve cuando termines el día.</p>`;
+      if (!ms.length) h += `<p class="ds" style="text-align:center;color:var(--mut)">No llevas ${sp.name.toLowerCase()} en la nevera. Sal a buscarlo y vuelve cuando lo tengas.</p>`;
       for (const m of ms) {
         const f = m.f;
         h += `<div class="item">${UI.fishPh(sp.id, 52, false)}<div class="meta"><div class="nm">${sp.name}</div><div class="ds">${f.cm} cm · ${U.kg(f.kg)} · ${G.freshLabel(f)[0]} ${Math.round(G.freshOf(f))}%</div>${m.why ? `<div class="ds" style="color:#ff8a6b;font-weight:700">${m.why}</div>` : ''}</div><button class="btn sm" data-act="sail_give" data-v="${f.id}" ${m.why ? 'disabled' : ''}>Entregar</button></div>`;

@@ -104,11 +104,11 @@ G.HOOKS = [
   { id: 'h5', name: 'Anzuelo nº 1', pts: 34, price: 2200, tier: 5 },
 ];
 G.BAITS = [
-  { id: 'gusano', name: 'Gusanos', pts: 2, price: 1, pack20: 17.5, icon: '🪱', ico: 'worm', tier: 1, wait: 1.55, maxRar: 1, desc: 'Baratos, pero tardan en picar y solo atraen peces comunes y poco comunes.' },
-  { id: 'sardina', name: 'Sardinas', pts: 3, price: 3, pack20: 55, icon: '🐟', ico: 'sardine', tier: 2, wait: 1.0, maxRar: 3, desc: 'Calidad media: picada normal, peces comunes y raros, y alguno épico.' },
-  { id: 'cangrejo', name: 'Cangrejos', pts: 5, price: 8, pack20: 150, icon: '🦀', ico: 'crab', tier: 3, wait: 0.62, maxRar: 4, desc: 'Los mejores: pican enseguida y atraen a todas las especies.' },
+  { id: 'gusano', name: 'Gusanos', pts: 2, price: 1.25, pack20: 22, icon: '🪱', ico: 'worm', tier: 1, wait: 1.55, maxRar: 1, desc: 'Baratos, pero tardan en picar y solo atraen peces comunes y poco comunes.' },
+  { id: 'sardina', name: 'Sardinas', pts: 3, price: 4, pack20: 70, icon: '🐟', ico: 'sardine', tier: 2, wait: 1.0, maxRar: 3, desc: 'Calidad media: picada normal, peces comunes y raros, y alguno épico.' },
+  { id: 'cangrejo', name: 'Cangrejos', pts: 5, price: 10, pack20: 190, icon: '🦀', ico: 'crab', tier: 3, wait: 0.62, maxRar: 4, desc: 'Los mejores: pican enseguida y atraen a todas las especies.' },
 ];
-G.BAITS.push({ id: 'gusano_ini', name: 'Gusanos de aprendiz', pts: 2, icon: '🪱', ico: 'worm', tier: 1, wait: 1.55, maxRar: 1, starter: true, desc: 'Regalo de inicio: no caducan, no se pierden al acabar el día y no se pueden vender.' });
+G.BAITS.push({ id: 'gusano_ini', name: 'Gusanos de aprendiz', pts: 2, icon: '🪱', ico: 'worm', tier: 1, wait: 1.55, maxRar: 1, starter: true, desc: 'Regalo de inicio: no caducan y no se pueden vender.' });
 G.RAR_ORDER = ['comun', 'poco', 'raro', 'epico', 'leyenda'];
 G.BAIT_INDEX = { gusano_ini: 0, gusano: 0, sardina: 1, cangrejo: 2 };
 

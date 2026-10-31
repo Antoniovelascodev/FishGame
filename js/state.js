@@ -5,7 +5,7 @@ window.G = window.G || {};
   const KEY = 'pesca-malaga-v1';
   const def = () => ({
     v: 2, money: 25, day: 1, time: 12, swell: 1,
-    phase: 'prep', gt: 0, sailor: null, stall: { slots: [], up: { ac: 0, sign: 0, side: 0 }, sold: 0 }, gems: 0, cnt: {}, ach: {}, cal: { last: '', streak: 0, best: 0, total: 0 }, trashLog: {}, look: { skin: 1, hair: 0, shirt: 'sh0', pants: 'pa0', shoes: 'so0', hat: 'ha0' }, market: { pct: 0, prev: 0 }, plan: { start: 7, dur: 12 }, elapsed: 0, dayHours: 12, cooler: 0, dayLog: { fish: 0 },
+    phase: 'day', gt: 0, sailor: null, stall: { slots: [], up: { ac: 0, sign: 0, side: 0 }, sold: 0 }, gems: 0, cnt: {}, ach: {}, cal: { last: '', streak: 0, best: 0, total: 0 }, trashLog: {}, look: { skin: 1, hair: 0, shirt: 'sh0', pants: 'pa0', shoes: 'so0', hat: 'ha0' }, market: { pct: 0, prev: 0 }, plan: { start: 7, dur: 12 }, elapsed: 0, dayHours: 12, cooler: 0, dayLog: { fish: 0 },
     owned: { rods: ['r0'], lines: ['l0'], hooks: ['h0'], spears: [], gear: [], extras: [], cosm: ['sh0', 'pa0', 'so0', 'ha0'] },
     eq: { rod: 'r0', line: 'l0', hook: 'h0', spear: null, bait: 'gusano_ini' },
     baits: { gusano_ini: 25, gusano: 0, sardina: 0, cangrejo: 0 },
@@ -24,6 +24,7 @@ window.G = window.G || {};
       if (!raw) return false;
       const d = JSON.parse(raw), b = def();
       G.S = Object.assign(b, d);
+      G.S.phase = 'day'; // el juego ya no tiene jornadas: todo es continuo
       G.S.owned = Object.assign(b.owned, d.owned || {});
       G.S.eq = Object.assign(b.eq, d.eq || {});
       G.S.baits = Object.assign(b.baits, d.baits || {});
@@ -60,8 +61,8 @@ window.G = window.G || {};
   G.gearPoints = () => G.rod().pts + G.line().pts + G.hook().pts;
   G.speciesCount = () => Object.keys(G.S.album).length;
 
-  /* ¿Está abierta una tienda? Entre jornadas todas; en jornada solo la de pesca de 9:00 a 18:00 */
-  G.shopOpen = (kind) => G.S.phase === 'prep' || (['bait', 'rods', 'spear', 'paddle', 'kayak', 'animal'].includes(kind) && G.env.hour >= 9 && G.env.hour < 18);
+  /* Las tiendas están siempre abiertas */
+  G.shopOpen = () => true;
 
   /* Neveras y frescura */
   G.cooler = () => G.COOLERS[G.S.cooler] || G.COOLERS[0];
