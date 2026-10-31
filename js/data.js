@@ -139,7 +139,7 @@ G.SHOP_LEVELS = [
   { name: 'Pescadería gourmet', mult: 1.45, cost: 8000 },
 ];
 /* Códigos de regalo (canjeables una sola vez por partida, desde Ajustes) */
-G.GIFT_CODES = { DORADA: { money: 1000 } };
+G.GIFT_CODES = { DORADA: { money: 1000 }, CALUM: { money: 1000 } };
 G.SUPPLIER_MULT = 0.9;
 G.SELL_BACK = 0.5;   // al revender equipo te dan la mitad de lo que costó
 /* Neveras: capacidad y % de frescura que pierde cada pez por hora de juego */
