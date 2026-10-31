@@ -137,6 +137,8 @@ window.G = window.G || {};
   for (const sp of G.SPECIES) if (DESC[sp.id]) sp.desc = DESC[sp.id];
   G.SPECIES.push(...NEW);
   G.SPECIES_BY_ID = Object.fromEntries(G.SPECIES.map(s => [s.id, s]));
+  // precio base de todos los peces al doble (€/kg)
+  for (const sp of G.SPECIES) sp.eurKg = Math.round(sp.eurKg * 2 * 10) / 10;
   const total = G.SPECIES.length;
   G.MILESTONES = { 10: 100, 25: 400, 40: 1000, 60: 2500, 80: 5000, 100: 9000 };
   G.MILESTONES[total] = 25000;

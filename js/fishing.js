@@ -50,7 +50,7 @@ G.Fish = (function () {
   }
   function pickSpecies(x, y, school) {
     const c = candidates(x, y);
-    if (school && school.sp && Math.random() < 0.65) { const hit = c.find(o => o.sp === school.sp); if (hit) return hit.sp; }
+    if (school && school.sp && Math.random() < 0.78) { const hit = c.find(o => o.sp === school.sp); if (hit) return hit.sp; }
     const pick = U.weighted(c, o => o.w);
     return pick ? pick.sp : null;
   }
@@ -115,7 +115,7 @@ G.Fish = (function () {
       if (!G.S.baits[G.S.eq.bait] || G.S.baits[G.S.eq.bait] <= 0) {
         // buscar otro cebo
         const alt = G.BAITS.find(b => G.S.baits[b.id] > 0);
-        if (!alt) { G.UI.toast('¡No te quedan cebos! Compra en la Tienda 🏪', 'warn'); return; }
+        if (!alt) { G.UI.toast('¡No te quedan cebos! Busca cangrejos quietos o gusanos entre las rocas de la playa, o vende material viejo en las tiendas', 'warn'); return; }
         G.S.eq.bait = alt.id; G.UI.toast('Cambias a ' + alt.name.toLowerCase());
       }
       F.state = 'charge'; F.chargeT = 0; F.power = 0;
@@ -149,7 +149,7 @@ G.Fish = (function () {
     G.S.stats.casts++;
     F.emptyTries = 0;
     F.school = G.World.schoolAt(F.target.x, F.target.y, G.env.t);
-    F.barren = !F.school && Math.random() < 0.2;
+    F.barren = !F.school && Math.random() < 0.06;
     G.Audio.play('whoosh');
     G.UI.refreshHud();
   }
@@ -205,7 +205,7 @@ G.Fish = (function () {
         F.rings.push({ x: F.target.x, y: F.target.y, t: 0, life: 1.8, big: true });
         G.Audio.play('splash');
         const bt = G.BAITS.find(b => b.id === F.baitUsed) || G.BAITS[0];
-        F.waitT = U.rand(5, 11) * (1.05 - G.env.swell * 0.05) * bt.wait;
+        F.waitT = U.rand(4, 8.5) * (1.05 - G.env.swell * 0.05) * bt.wait;
         if (isNight() && G.S.owned.extras.includes('lampara')) F.waitT *= 0.8;
         if (F.school) F.waitT *= 0.55;
         if (F.barren) F.waitT = U.rand(6, 9);

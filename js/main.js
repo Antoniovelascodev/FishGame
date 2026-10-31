@@ -114,6 +114,13 @@ window.G = window.G || {};
       if (G.Fish.locked()) return null;
       return { label: '🚪 Entrar: ' + sh.label.split(' · ')[0], run: () => G.Interior.enter(sh.kind) };
     }
+    if (!S.onPaddle && !(G.Dive && G.Dive.active)) {
+      const giveBait = (id, n) => { S.baits[id] = (S.baits[id] || 0) + n; if (!S.baits[S.eq.bait]) S.eq.bait = id; G.Audio.play('buy'); G.UI.refreshHud(); G.save(); };
+      const cr = W.crabNear(p);
+      if (cr) return { label: '🦀 Atrapar cangrejo', run: () => { if (W.grabCrab(cr)) { giveBait('cangrejo', 1); G.UI.toast('🦀 ¡Cangrejo atrapado! +1 cebo de cangrejo', 'good'); } else G.UI.toast('Se te escapó entre las piedras…', 'warn'); } };
+      const ws = W.wormNear(p);
+      if (ws) return { label: '🪨 Mover piedras', run: () => { const n = W.digWorms(ws); if (n) { giveBait('gusano', n); G.UI.toast(`🪱 ¡Has encontrado ${n} gusano${n > 1 ? 's' : ''}!`, 'good'); } else G.UI.toast('Solo había arena y una lapa…', 'warn'); } };
+    }
     if (S.phase !== 'day') return null;
     if (S.onPaddle) {
       return W.shoreY(p.x) - p.y < 90 ? { label: '🚶 Bajar de la tabla', run: disembark } : null;

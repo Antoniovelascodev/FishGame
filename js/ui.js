@@ -153,7 +153,7 @@ G.UI = (function () {
     if (tabs && !ms.tab) ms.tab = tabs[0][0];
     let body = '';
     if (ms.type === 'inv') body = invBody();
-    else if (ms.type === 'shop') body = shopBody();
+    else if (ms.type === 'shop') body = (['canas', 'hilos', 'anzuelos', 'buceo', 'extras'].includes(ms.tab) ? '<p class="ds" style="color:#6df0b6">♻️ ¿Sin dinero para cebo? Puedes vender tu material al 50 % de lo que costó.</p>' : '') + shopBody();
     else if (ms.type === 'lonja') body = sellBody('lonja');
     else if (ms.type === 'plan') body = planBody();
     else if (ms.type === 'map') body = mapBody();
@@ -269,12 +269,18 @@ G.UI = (function () {
     if (owned) return `<button class="btn sm ghost" disabled>Tuyo</button>`;
     return `<button class="btn sm" data-act="${act}" ${data} ${afford ? '' : 'disabled'}>${U.money(price)}</button>`;
   }
+  function tradeBtn(price, owned, afford, kind, id) {
+    if (!owned) return priceBtn(price, false, afford, 'buy', `data-k="${kind}" data-v="${id}"`);
+    const conf = ms.cs === kind + id;
+    const sell = price > 0 ? `<button class="btn sm" ${conf ? 'style="background:#c0392b"' : ''} data-act="sellgear" data-k="${kind}" data-v="${id}">${conf ? '¿Seguro?' : 'Vender ' + U.money(Math.round(price * G.SELL_BACK))}</button>` : '';
+    return `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm ghost" disabled>Tuyo</button>${sell}</div>`;
+  }
   function shopBody() {
     const S = G.S, can = (p) => S.money >= p;
     const t = ms.tab;
     const list = (arr, ownedArr, kind, stat, eqKey) => arr.map((x, i) => {
       const owned = ownedArr.includes(x.id), cur = eqKey && S.eq[eqKey] === x.id;
-      return `<div class="item ${cur ? 'on' : ''}"><div class="meta"><div class="nm">${x.name}</div><div class="ds">${stat(x)}</div></div>${priceBtn(x.price, owned, can(x.price), 'buy', `data-k="${kind}" data-v="${x.id}"`)}</div>`;
+      return `<div class="item ${cur ? 'on' : ''}"><div class="meta"><div class="nm">${x.name}</div><div class="ds">${stat(x)}</div></div>${tradeBtn(x.price, owned, can(x.price), kind, x.id)}</div>`;
     }).join('');
     if (t === 'canas') return `<p class="ds" style="color:var(--mut)">Más alcance = llegas a fondos y peces más lejanos (hasta las boyas, a 200 m).</p>` + list(G.RODS, S.owned.rods, 'rods', x => `Alcance ${x.reach} m · +${x.pts} pts · aguanta ${x.cap} kg`, 'rod');
     if (t === 'hilos') return `<p class="ds" style="color:var(--mut)">Un hilo mejor suma puntos y aguanta mejor los tirones.</p>` + list(G.LINES, S.owned.lines, 'lines', x => `+${x.pts} pts · aguanta ${Math.round(100 / x.tension)}% · hasta ${x.cap} kg`, 'line');
@@ -286,11 +292,11 @@ G.UI = (function () {
     }).join('');
     if (t === 'buceo') {
       let h = `<p class="ds" style="color:var(--mut)">Para la pesca submarina necesitas gafas, aletas, neopreno y un arpón. Sal por la zona de buceo de las rocas.</p><div class="sec">Equipo básico</div>`;
-      h += G.DIVE_GEAR.map(g => `<div class="item">${G.Icons.html(g.ico || 'mask', 36)}<div class="meta"><div class="nm">${g.name}</div></div>${priceBtn(g.price, S.owned.gear.includes(g.id), can(g.price), 'buy', `data-k="gear" data-v="${g.id}"`)}</div>`).join('');
+      h += G.DIVE_GEAR.map(g => `<div class="item">${G.Icons.html(g.ico || 'mask', 36)}<div class="meta"><div class="nm">${g.name}</div></div>${tradeBtn(g.price, S.owned.gear.includes(g.id), can(g.price), 'gear', g.id)}</div>`).join('');
       h += `<div class="sec">Arpones</div>` + list(G.SPEARS, S.owned.spears, 'spears', x => `+${x.pts} pts · alcance ${x.range} m`, 'spear');
       return h;
     }
-    if (t === 'extras') return G.EXTRAS.filter(g => (SHOPS[ms.shop || 'rods'].extras || []).includes(g.id)).map(g => `<div class="item">${G.Icons.html(g.ico || 'lamp', 40)}<div class="meta"><div class="nm">${g.name}</div><div class="ds">${g.desc}</div></div>${priceBtn(g.price, S.owned.extras.includes(g.id), can(g.price), 'buy', `data-k="extras" data-v="${g.id}"`)}</div>`).join('');
+    if (t === 'extras') return G.EXTRAS.filter(g => (SHOPS[ms.shop || 'rods'].extras || []).includes(g.id)).map(g => `<div class="item">${G.Icons.html(g.ico || 'lamp', 40)}<div class="meta"><div class="nm">${g.name}</div><div class="ds">${g.desc}</div></div>${tradeBtn(g.price, S.owned.extras.includes(g.id), can(g.price), 'extras', g.id)}</div>`).join('');
     return '';
   }
 
@@ -400,6 +406,20 @@ G.UI = (function () {
       const eqKey = { rods: 'rod', lines: 'line', hooks: 'hook', spears: 'spear' }[d.k];
       if (eqKey) S.eq[eqKey] = it.id;
       G.Audio.play('buy'); UI.toast('Comprado: ' + it.name, 'good'); G.save(); return render();
+    }
+    if (act === 'sellgear') {
+      const pools = { rods: G.RODS, lines: G.LINES, hooks: G.HOOKS, spears: G.SPEARS, gear: G.DIVE_GEAR, extras: G.EXTRAS };
+      const it = pools[d.k].find(x => x.id === d.v), arr = S.owned[d.k];
+      if (!it || !arr.includes(it.id) || !(it.price > 0)) return;
+      if (ms.cs !== d.k + d.v) { ms.cs = d.k + d.v; UI.toast('Pulsa otra vez para vender por ' + U.money(Math.round(it.price * G.SELL_BACK))); return render(); }
+      if (it.id === 'paddle' && S.onPaddle) { ms.cs = null; return UI.toast('Bájate de la tabla antes de venderla', 'warn'); }
+      ms.cs = null;
+      arr.splice(arr.indexOf(it.id), 1);
+      S.money += Math.round(it.price * G.SELL_BACK);
+      const eqKey = { rods: 'rod', lines: 'line', hooks: 'hook', spears: 'spear' }[d.k];
+      if (eqKey && S.eq[eqKey] === it.id) { const rest = pools[d.k].filter(x => arr.includes(x.id)); S.eq[eqKey] = rest.length ? rest[rest.length - 1].id : null; }
+      if (it.id === 'paddle') S.board = null;
+      G.Audio.play('buy'); UI.toast('Vendido: ' + it.name + ' por ' + U.money(Math.round(it.price * G.SELL_BACK)), 'good'); G.save(); return render();
     }
     if (act === 'buybait') {
       const b = G.BAITS.find(x => x.id === d.v), n = +d.n, cost = n === 20 ? b.pack20 : b.price * n;

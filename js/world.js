@@ -337,18 +337,48 @@ G.World = (function () {
   /* ---- Cangrejos de la orilla: pocos, huyen del jugador ---- */
   const crabs = [];
   const crabX = sampler(z => z.beach === 'sand' || z.beach === 'rock' || z.beach === 'stone');
-  for (let i = 0; i < 9; i++) crabs.push({ x: crabX(rngP), off: 16 + rngP() * 58, rg: 22 + rngP() * 60, sp: 0.2 + rngP() * 0.35, ph: rngP() * 6.28, fx: 0, lt: 0, flee: 0, sc: 0.9 + rngP() * 0.4 });
+  for (let i = 0; i < 9; i++) crabs.push({ x: crabX(rngP), off: 16 + rngP() * 58, rg: 22 + rngP() * 60, sp: 0.2 + rngP() * 0.35, ph: rngP() * 6.28, fx: 0, lt: 0, flee: 0, sc: 0.9 + rngP() * 0.4, tt: rngP() * 50, stillUntil: 0, nextStill: 0, hide: 0, cx: null, cy: 0 });
+  /* Cangrejos que a veces se quedan quietos: se pueden atrapar para usarlos de cebo */
+  function crabNear(p) { const t = G.env.t; return crabs.find(c => c.cx != null && t >= c.hide && t < c.stillUntil && Math.hypot(c.cx - p.x, c.cy - p.y) < 46) || null; }
+  function grabCrab(c) {
+    const t = G.env.t; c.stillUntil = 0;
+    if (Math.random() < 0.6) { c.hide = t + 90; return true; }
+    c.flee = 0.6; c.fx = U.clamp(c.fx + (c.cx >= G.P.x ? 1 : -1) * 120, -170, 170); return false;
+  }
+  /* Gusanos entre las piedras: pocos puntos, solo se ven de cerca */
+  const wormSpots = [];
+  const wormX = sampler(z => z.beach === 'rock' || z.beach === 'stone');
+  while (wormSpots.length < 18) { const x = wormX(rngP); if (x > 4730 && x < 4830) continue; wormSpots.push({ x, off: 18 + rngP() * 42, used: -1e9, ph: rngP() * 6 }); }
+  function wormNear(p) { const t = G.env.t; return wormSpots.find(w => t - w.used > 240 && Math.hypot(w.x - p.x, shoreY(w.x) + w.off - p.y) < 38) || null; }
+  function digWorms(w) { w.used = G.env.t; return Math.random() < 0.75 ? 1 + (Math.random() < 0.45 ? 1 : 0) + (Math.random() < 0.15 ? 1 : 0) : 0; }
+  function drawWormSpots(ctx, vis, env) {
+    const t = env.t, P = G.P;
+    for (const w of wormSpots) {
+      if (t - w.used <= 240 || w.x < vis.x0 - 30 || w.x > vis.x1 + 30) continue;
+      const y = shoreY(w.x) + w.off, d = Math.hypot(w.x - P.x, y - P.y), a = U.clamp((190 - d) / 110, 0, 1);
+      if (a <= 0.02) continue;
+      ctx.fillStyle = `rgba(70,64,58,${a})`; ctx.beginPath(); ctx.ellipse(w.x, y + 1, 7, 3.4, 0, 0, 6.3); ctx.fill();
+      ctx.strokeStyle = `rgba(222,128,138,${a})`; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (let k = 0; k < 3; k++) { const x0 = w.x + (k - 1) * 4; ctx.beginPath(); ctx.moveTo(x0, y); ctx.quadraticCurveTo(x0 + Math.sin(t * 3 + k + w.ph) * 3, y - 4, x0 + Math.sin(t * 2 + k) * 2.5, y - 8 - (Math.sin(t * 2.4 + k + w.ph) * 0.5 + 0.5) * 3); ctx.stroke(); }
+    }
+  }
   function drawCrabs(ctx, vis, env) {
     const t = env.t, P = G.P;
+    drawWormSpots(ctx, vis, env);
     for (const c of crabs) {
       const dt = Math.min(0.1, Math.max(0, t - c.lt)); c.lt = t;
-      const x = c.x + Math.sin(t * c.sp + c.ph) * c.rg + c.fx;
+      if (!c.nextStill) c.nextStill = t + 5 + Math.random() * 30;
+      if (t < c.hide) continue;
+      const still = t < c.stillUntil;
+      if (!still) { c.tt += dt; if (t >= c.nextStill) { c.stillUntil = t + 6 + Math.random() * 5; c.nextStill = c.stillUntil + 25 + Math.random() * 35; } }
+      const x = c.x + Math.sin(c.tt * c.sp + c.ph) * c.rg + c.fx;
       const y = shoreY(x) + c.off + Math.sin(t * 2 + c.ph) * 1.2;
+      c.cx = x; c.cy = y;
       if (x < vis.x0 - 20 || x > vis.x1 + 20 || y < vis.y0 - 20 || y > vis.y1 + 20) continue;
-      const dxp = x - P.x, dyp = y - P.y, d = Math.hypot(dxp, dyp);
-      if (d < 62 && !G.S.onPaddle) { c.fx = U.clamp(c.fx + (dxp >= 0 ? 1 : -1) * 170 * dt * (1.3 - d / 62), -170, 170); c.flee = 0.5; }
+      const dxp = x - P.x, dyp = y - P.y, d = Math.hypot(dxp, dyp), fr = still ? 22 : 62;
+      if (d < fr && !G.S.onPaddle) { c.fx = U.clamp(c.fx + (dxp >= 0 ? 1 : -1) * 170 * dt * (1.3 - d / fr), -170, 170); c.flee = 0.5; c.stillUntil = 0; }
       else { c.flee = Math.max(0, c.flee - dt); c.fx *= 1 - Math.min(1, dt * 0.25); }
-      const moving = c.flee > 0 || Math.abs(Math.cos(t * c.sp + c.ph)) > 0.6, leg = Math.sin(t * 15 + c.ph) * (moving ? 1.7 : 0.3);
+      const moving = c.flee > 0 || (!still && Math.abs(Math.cos(c.tt * c.sp + c.ph)) > 0.6), leg = Math.sin(t * 15 + c.ph) * (moving ? 1.7 : 0.3);
       ctx.save(); ctx.translate(x, y); ctx.scale(c.sc, c.sc);
       ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(1, 2.6, 5.4, 2.3, 0, 0, 6.3); ctx.fill();
       ctx.strokeStyle = '#a83a28'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
@@ -378,19 +408,19 @@ G.World = (function () {
   function spawnSchool(s, t, first) {
     for (let tries = 0; tries < 12; tries++) {
       // el banco entero queda lejos de la arena: su borde más cercano a la orilla está a >= 8 m
-      const rad = 18 + Math.random() * 14, minD = (rad * 0.75 + 58) / PXM;
+      const rad = 22 + Math.random() * 18, minD = (rad * 0.75 + 58) / PXM;
       const x = FENCE_L + 60 + Math.random() * (PORT_FENCE_X - FENCE_L - 120), depth = minD + Math.pow(Math.random(), 1.5) * (90 - minD);
       const y = shoreY(x) - depth * PXM;
       if (inPier(x, y, 30) || y < G.BUOY_Y + 30 || zoneAt(x).beach === 'port') continue;
       const sp = pickSchoolSpecies(x, y);
       if (!sp) continue;
-      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 1 + (Math.random() < 0.35 ? 1 : 0);
-      s.life = 70 + Math.random() * 110; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
+      s.x = x; s.y = y; s.depth = depth; s.sp = sp; s.r = rad; s.n = 2 + (Math.random() < 0.4 ? 1 : 0);
+      s.life = 90 + Math.random() * 130; s.born = first ? t - Math.random() * s.life * 0.8 : t; s.dir = Math.random() < 0.5 ? 1 : -1; s.seed = Math.random() * 100;
       return;
     }
     s.sp = null; s.born = t; s.life = 5;
   }
-  for (let i = 0; i < 22; i++) { const s = {}; spawnSchool(s, 0, true); schools.push(s); }
+  for (let i = 0; i < 40; i++) { const s = {}; spawnSchool(s, 0, true); schools.push(s); }
   function schoolAlpha(s, t) {
     const age = t - s.born;
     return U.clamp(Math.min(age / 4, (s.life - age) / 6), 0, 1);
@@ -1024,6 +1054,7 @@ G.World = (function () {
   function fishingLights() { return lamps; }
 
   return {
+    crabNear, grabCrab, wormNear, digWorms,
     PIER, PIERS, DIVE, DIVES, PADDLE_SPAWN, PREP_SPAWN, SPOTS, ZONES, zoneAt, nearestSpot, FENCE_L, LONJA_X, STALL_X, LANDMARKS, freeSpot, updateSchools, schoolAt, swimmerAt, hitTowel, peopleNow, sunbathersNow, drawPerson, PROM_Y1, PORT_FENCE_X, buildings,
     shoreY, depthAt, habitatAt, canWalk, canPaddle, inPier,
     drawSea, drawLand, drawBuoys, drawTall, fishingLights,
